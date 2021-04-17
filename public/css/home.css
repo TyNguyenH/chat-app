@@ -1,0 +1,114 @@
+body {
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+h1 {
+    text-align: center;
+    font-size: 40px;
+}
+
+#messages-group {
+    position: relative;
+    margin: auto;
+    margin-bottom: 10px;
+    width: 400px;
+    height: 500px;
+    overflow-y: auto;
+    word-wrap: break-word;
+    border: 2px solid black;
+}
+
+.message-username {
+    background-color: rgb(39, 39, 39);
+    color: white;
+    padding: 7px;
+    border-radius: 5px;
+}
+
+.received-message, .my-message {
+    font-size: 16px;
+    margin: 10px;
+    margin-top: 20px;
+}
+
+.received-message {
+    text-align: left;
+}
+
+.my-message {
+    text-align: right;
+}
+
+#feedback-container {
+    margin: auto;
+    position: relative;
+    width: 400px;
+}
+
+#feedback {
+    text-align: left;
+    padding: 5px;
+    position: absolute;
+    bottom: 12px;
+    left: 0;
+    background-color: rgb(191, 191, 255);
+    font-weight: bold;
+    visibility: hidden;
+}
+
+#username {
+    display: block;
+    width: 120px;
+    text-align: left;
+    margin-bottom: 5px;
+}
+
+#message-text, #username {
+    font-size: 16px;
+    outline: none;
+    padding: 5px;
+}
+
+img {
+    width: 60px;
+}
+
+.input-file {
+    width: 0.1px;
+    height: 0.1px;
+    opacity: 0;
+    overflow: hidden;
+    position: absolute;
+    z-index: -1;
+}
+
+.input-file + label {
+    display: inline-block;
+    position: relative;
+    padding: 9px;
+    width: 100px;
+    border-radius: 15px;
+    background: black;
+    box-shadow: 0 4px 7px rgba(0, 0, 0, 0.4);
+    color: #fff;
+    font-weight: bold;
+    font-size: 14.5px;
+    cursor: pointer;
+}
+
+#send-msg-btn {
+    font-size: 15px;
+    padding: 8.5px;
+    width: 70px;
+    background-color: black;
+    color: white;
+    font-weight: bold;
+    outline: none;
+    box-shadow: 0 4px 7px rgba(0, 0, 0, 0.4);
+    border: none;
+    border-radius: 15px;
+}
+
+#send-msg-btn:hover {
+    background-color: rgb(71, 71, 71)
+}

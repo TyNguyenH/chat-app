@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/styles.css">
+    <title>Đăng nhập</title>
+</head>
+
+<body>
+    <div class="flex flex-col justify-center h-screen">
+        <div class="container mx-auto rounded-md w-80 px-5 py-4 bg-gray-100 shadow-md">
+            <h2 class="
+                    mb-10 mx-auto py-2
+                    rounded-md bg-blue-500
+                    text-white font-bold text-xl text-center
+                    shadow-lg
+                    ">
+                ĐĂNG NHẬP
+            </h2>
+            <form action="/login" method="POST">
+                <!-- Email -->
+                <div class="mb-1">
+                    <input class="
+                            py-1 px-3 w-full border border-transparent
+                            bg-gray-200
+                            focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent focus:bg-gray-100
+                            rounded-lg
+                            shadow-lg
+                            placeholder-black placeholder-opacity-75
+                            transition duration-150
+                            " type="text" name="email" id="email" placeholder="Email">
+                </div>
+                <div id="email-warning" class="mx-1 mb-3 invisible font-semibold text-red-500">
+                    * Warning
+                </div>
+
+                <!-- Password -->
+                <div class="mb-1">
+                    <input class="
+                            py-1 px-3 w-full border border-transparent
+                            bg-gray-200
+                            focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent focus:bg-gray-100
+                            rounded-lg
+                            shadow-lg
+                            placeholder-black placeholder-opacity-75
+                            transition duration-150
+                            " type="password" name="password" id="password" placeholder="Mặt khẩu">
+                </div>
+                <div id="password-warning" class="mx-1 mb-5 invisible font-semibold text-red-500">
+                    * Warning
+                </div>
+
+                <!-- Login button -->
+                <div class="text-center">
+                    <input class="
+                            mx-1 px-2 py-1
+                            cursor-pointer
+                            outline-none
+                            bg-blue-600 rounded-md shadow-md
+                            text-white font-semibold
+                            hover:shadow-lg
+                            transform hover:scale-110
+                            transition duration-75
+                            " id="login" type="submit" value="Đăng nhập">
+                </div>
+            </form>
+        </div>
+        <div class="container mx-auto my-4 text-center">
+            <a class="font-semibold hover:text-blue-500" href="/register">Bạn chưa có tài khoản? Đăng ký</a>
+        </div>
+    </div>
+
+    <script src='/js/login.js'></script>
+    <script src='/js/check-window-width.js'></script>
+</body>
+
+</html>

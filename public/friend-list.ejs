@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/styles.css">
+    <title>Danh sách bạn</title>
+</head>
+<body>
+    <%- include('./partials/navbar.ejs') %>
+    
+    <!-- Search friend -->
+    <form
+        id="search-friend-bar"
+        class="mt-4 mb-6 mx-auto border-2 border-black w-96 rounded-lg shadow-lg flex">
+        <input
+            class="focus:outline-none focus:ring-2 focus:ring-blue-600 w-full rounded-l-md px-3 py-1"
+            type="text"
+            placeholder="Tìm bạn bốn phương . . .">
+            
+        <button type="submit" class="focus:outline-none border-l-2 border-black bg-black w-auto text-blue-500 p-2">
+            <img src="./imgs/search-icon.png" class="w-6">
+        </button>
+    </form>
+
+    <script type="module" src="/js/config.js"></script>
+    <script type="module" src="/js/friend-list.js"></script>
+</body>
+</html>

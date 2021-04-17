@@ -1,0 +1,45 @@
+<div id="navbar"
+    class="flex justify-between items-center mt-2 py-2 mx-auto w-9/12 text-right text-lg font-semibold
+    align-center">
+
+    <div class="flex justify-evenly items-center cursor-pointer p-2 border border-gray-300 shadow-lg rounded-lg bg-gray-200">
+        <img id="user-avatar" src=<%= avatarSrc %> alt="avatar"
+            class="flex-shrink-0 shadow-md rounded-full h-9 w-9 mr-2">
+        <span id="user-info" class="font-bold text-xl" data-user-id=<%= userID %>>
+            <%= lastName + ' ' + firstName%>
+        </span>
+    </div>
+
+    <div>
+        <button id="home-btn" 
+                class="
+                    mx-1 px-2 py-1 rounded-lg bg-black shadow-lg
+                    font-semibold text-white text-center
+                    focus:outline-none
+                    transform hover:scale-105
+                    transition duration-75
+                " onclick="location.href='/home'">
+            Trang chủ
+        </button>
+        <button id="friend-list-btn" 
+                class="
+                    mx-1 px-2 py-1 rounded-lg bg-black shadow-lg
+                    font-semibold text-white text-center
+                    focus:outline-none
+                    transform hover:scale-105
+                    transition duration-75
+                " onclick="location.href='/friend-list'">
+            Danh sách bạn
+        </button>
+        <button id="logout-btn" 
+                class="
+                    mx-1 px-2 py-1 rounded-lg bg-red-500 shadow-lg
+                    font-semibold text-white text-center
+                    focus:outline-none
+                    transform hover:scale-105
+                    transition duration-75
+                " onclick="location.href='/logout'; localStorage.clear();">
+            Đăng xuất
+        </button>
+    </div>
+</div>

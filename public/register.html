@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/styles.css">
+    <title>Đăng ký</title>
+</head>
+<body>
+    <div class="flex flex-col justify-center h-screen">
+        <div class="container mx-auto rounded-md w-96 px-4 py-4 bg-gray-100 shadow-md">
+            <h2 class="
+                    mb-10 mx-auto py-2 
+                    rounded-md bg-blue-500 
+                    text-white font-bold text-xl text-center
+                    shadow-lg
+                    ">
+                ĐĂNG KÝ
+            </h2>
+            <form action="/register" enctype="multipart/form-data" method="POST">
+
+                <!-- Last name & first name -->
+                <div class="mb-1 flex justify-between">
+                    <input class="
+                        mr-2 py-1 px-3 w-1/2 border border-transparent 
+                        bg-gray-200
+                        focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent focus:bg-gray-100
+                        rounded-lg
+                        shadow-lg
+                        placeholder-black placeholder-opacity-75
+                        transition duration-150
+                        " type="text" name="last-name" id="last-name" placeholder="Họ">
+                    
+                    <input class="
+                        ml-2 py-1 px-3 w-1/2 border border-transparent 
+                        bg-gray-200
+                        focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent focus:bg-gray-100
+                        rounded-lg
+                        shadow-lg
+                        placeholder-black placeholder-opacity-75
+                        transition duration-150
+                        " 
+                        type="text" name="first-name" id="first-name" placeholder="Tên">
+                </div>
+                <div id="fullname-warning" class="flex flex-row justify-between mx-1 mb-4 font-semibold text-red-500">
+                <div id="last-name-warning" class="invisible w-1/2">
+                    * Họ warning
+                </div>
+                <div id="first-name-warning" class="invisible w-1/2">
+                    * Tên warning
+                </div>
+                </div>
+
+                <!-- Email -->
+                <div class="mb-1">
+                    <input class="
+                            py-1 px-3 w-full border border-transparent 
+                            bg-gray-200
+                            focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent focus:bg-gray-100
+                            rounded-lg
+                            shadow-lg
+                            placeholder-black placeholder-opacity-75
+                            transition duration-150
+                            " 
+                            type="text" name="email" id="email" placeholder="Email">
+                </div>
+                <div id="email-warning" class="mx-1 mb-4 invisible font-semibold text-red-500">
+                    * Warning
+                </div>
+
+                <!-- Password-->
+                <div class="mb-2">
+                    <input class="
+                        py-1 px-3 w-full border border-transparent 
+                        bg-gray-200
+                        focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent focus:bg-gray-100
+                        rounded-lg
+                        shadow-lg
+                        placeholder-black placeholder-opacity-75
+                        transition duration-150
+                        " 
+                        type="password" name="password" id="password" placeholder="Mặt khẩu">
+                </div>
+                <div class="flex flex-row mx-1 mb-8">
+                    <div class="w-7/12 mt-6">
+                        <ul id="password-requirements" class="ml-1 text-red-500 visible text-base">
+                            <li class="text-black">Yêu cầu mật khẩu:</li>
+                            <li id="pass-req-min-letter">Tối thiểu 6 ký tự</li>
+                            <li id="pass-req-max-letter">Tối đa 16 ký tự</li>
+                            <li id="pass-req-cap-letter">Có chữ in hoa</li>
+                            <li id="pass-req-norm-letter">Có chữ in thường</li>
+                            <li id="pass-req-num-letter">Có chữ số</li>
+                        </ul>
+                    </div>
+                    <div class="flex flex-row items-center justify-end h-6 w-5/12">
+                        <label for="show-password" class="inline mx-2 text-black text-center text-sm">Hiện mật khẩu</label>
+                        <input id="show-password" type="checkbox" class="h-4 w-4">
+                    </div>                 
+                </div>          
+                <!-- <div id="password-warning" class="mx-1 mb-8 text-red-500 invisible">* Warning</div> -->
+
+                <!-- Avatar -->
+                <div class="mb-1">
+                    <span class="ml-2 font-semibold">Ảnh đại diện:</span>
+                    <label for="avatar" class="
+                                ml-6 py-1 px-2 rounded-md border-2 border-gray-500
+                                text-center bg-gray-500 text-white font-semibold
+                                hover:bg-black hover:border-black hover:text-white
+                                transition duration-75
+                                cursor-pointer
+                                ">
+                        Chọn ảnh</label>
+                    <input type=file id="avatar" name="avatar" class="invisible w-0">
+                </div>
+                <img id="avatar-preview-img" class="w-1/2 mx-auto invisible" src="" alt="avatar preview">
+                <div id="avatar-warning" class="mx-1 mb-4 invisible font-semibold text-red-500">
+                    * Warning
+                </div>
+                
+                <!-- Reset & register button -->
+                <div class="text-center">
+                    <input class="
+                            mx-1 px-2 py-1 
+                            cursor-pointer 
+                            outline-none
+                            bg-black rounded-md shadow-md
+                            text-white font-semibold 
+                            hover:shadow-lg
+                            transform hover:scale-110
+                            transition duration-75
+                            " 
+                            type="reset" value="Nhập lại">
+                            
+                    <input class="
+                            mx-1 px-2 py-1 
+                            cursor-pointer 
+                            outline-none
+                            bg-blue-600 rounded-md shadow-md
+                            text-white font-semibold 
+                            hover:shadow-lg
+                            transform hover:scale-110
+                            transition duration-75
+                            "
+                            id="register" type="submit" value="Đăng ký">
+                </div>
+            </form>
+        </div>
+        <div class="container mx-auto my-4 text-center">
+            <a class="font-semibold  hover:text-blue-500" href="/login">Bạn đã có tài khoản? Đăng nhập</a>
+        </div>
+    </div>
+    
+    <script type="module" src="./js/config.js"></script>
+    <script type="module" src='/js/register.js'></script>
+
+    <script src='/js/check-window-width.js'></script>
+</body>
+</html>
