@@ -19,7 +19,15 @@ loginForm.onsubmit = () => {
 
 
 let email = document.querySelector('#email');
+
 email.onchange = checkEmail;
+email.onkeydown = () => {
+    let emailWarning = document.querySelector('#email-warning');
+    if (email.value.length > 0) {
+        emailWarning.style.visibility = 'hidden';
+    }
+}
+
 function checkEmail() {
     let emailPattern = /\b[\w\.-]+@[\w\.-]+\.\w{2,4}\b/;
     let emailWarning = document.querySelector('#email-warning');
@@ -40,7 +48,15 @@ function checkEmail() {
 
 
 let password = document.querySelector('#password');
+
 password.onchange = checkPassword;
+password.onkeydown = () => {
+    let passwordWarning = document.querySelector('#password-warning');
+    if (password.value.length > 0) {
+        passwordWarning.style.visibility = 'hidden';
+    }
+}
+
 function checkPassword() {
     let passwordWarning = document.querySelector('#password-warning');
     if (password.value.length == 0) {
