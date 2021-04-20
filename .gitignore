@@ -2,6 +2,7 @@ database/ChatApp.sql
 database/ChatApp.drawio
 
 /.env
+public/js/config.js
 /OtherMaterials.txt
 /postgre-client-test.js
 /test.js
