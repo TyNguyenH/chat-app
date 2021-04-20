@@ -184,12 +184,15 @@ window.onload = async () => {
                         messageIDs.push(Number.parseInt(message.getAttribute('data-message-id')));
                     }
                 }
-                messageData.senderID = creatorID;
-                messageData.recipientID = userID;
-                messageData.messageID = messageIDs.filter(Boolean);
-                messageData.isRead = true;
 
-                socket.emit('seen message', messageData);
+                if (messageIDs.length > 0) {
+                    messageData.senderID = creatorID;
+                    messageData.recipientID = userID;
+                    messageData.messageID = messageIDs.filter(Boolean);
+                    messageData.isRead = true;
+
+                    socket.emit('seen message', messageData);
+                }
             }
         }
     }
