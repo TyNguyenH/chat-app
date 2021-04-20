@@ -148,7 +148,7 @@ function renderAllMessageSnippets() {
     Create and return a complete message
     Note: messageTimestamp format: 'DD-MM-YYYY 24HH-MM-SS'
 */
-function renderMessage(msgID, msgCreator, msgAvatarSrc, msgText, msgImageSrc, messageTimestamp) {
+function renderMessage(msgID, msgCreator, msgAvatarSrc, msgText, msgImageSrc, msgTimestamp, msgIsRead) {
     let messageElement = '';
     let messageStyling = '';
     let avatarElement = '';
@@ -191,18 +191,24 @@ function renderMessage(msgID, msgCreator, msgAvatarSrc, msgText, msgImageSrc, me
         imgElement = `<img src="${msgImageSrc}" alt="image" class="rounded-lg">`;
     }
 
-    if (messageTimestamp) {
+    if (msgTimestamp) {
         let dateNow = new Date(Date.now());
         let date = dateNow.getDate() >= 10 ? dateNow.getDate() : ('0' + dateNow.getDate());
         let month = dateNow.getMonth() >= 10 ? dateNow.getDate() : ('0' + (dateNow.getMonth() + 1));
         let year = dateNow.getFullYear();
+
+        // DD-MM-YYYY
         dateNow = `${date}-${month}-${year}`;
 
-        const dateCreated = messageTimestamp.split(' ')[0];
-        const timeCreated = messageTimestamp.split(' ')[1];
+        // DD-MM-YYYY
+        const dateCreated = msgTimestamp.split(' ')[0];
+
+        // HH24:MM:SS
+        const timeCreated = msgTimestamp.split(' ')[1];
+        
         let timestamp = '';
         if (dateCreated == dateNow) {
-            // 24HH:MM:SS
+            // HH24:MM:SS
             const hour = timeCreated.split(':')[0];
             const minute = timeCreated.split(':')[1];
             timestamp = `${hour}:${minute}`;
@@ -210,11 +216,11 @@ function renderMessage(msgID, msgCreator, msgAvatarSrc, msgText, msgImageSrc, me
             const messageYear = dateCreated.split('-')[2];
             const currentYear = new Date(Date.now()).getFullYear();
             if (messageYear == currentYear) {
-                // DD-MM
-                timestamp = `${dateCreated.split('-')[0]}-${dateCreated.split('-')[1]}`;
+                // Convert DD-MM to DD/MM
+                timestamp = `${dateCreated.split('-')[0]}/${dateCreated.split('-')[1]}`;
             } else {
-                // DD-MM-YYYY
-                timestamp = dateCreated;
+                // Convert DD-MM-YYYY to DD/MM/YYYY
+                timestamp = dateCreated.replace('-', '/');
             }
         }
 
@@ -225,8 +231,13 @@ function renderMessage(msgID, msgCreator, msgAvatarSrc, msgText, msgImageSrc, me
         `;
     }
 
+    let msgDataIsRead = '';
+    if (msgIsRead == true || msgIsRead == false) {
+        msgDataIsRead = `data-message-is-read=${msgIsRead}`;
+    }
+
     messageElement =
-        `<div class="${messageStyling}" data-message-id=${msgID}>
+        `<div class="${messageStyling}" data-message-id=${msgID} ${msgDataIsRead}>
             <div class="flex flex-row justify-between">
                 ${avatarElement}
                 ${textElement}
@@ -258,13 +269,12 @@ function renderMessage(msgID, msgCreator, msgAvatarSrc, msgText, msgImageSrc, me
         ...
     ]
     
-    @param {object} - friendsNavTab = {
+    @param {object} - friendsNavTab: {
         friendID: { HTMLElement },
         ...
     }
 */ 
 function renderMessagesBox(friendsNavTab, messages) {
-    console.log(friendsNavTab);
     let chatMsgBox = document.querySelector('#messages-box');
     chatMsgBox.innerHTML = '';
 
@@ -287,8 +297,8 @@ function renderMessagesBox(friendsNavTab, messages) {
             } else {
                 creatorAvatar = null
             }
-
-            chatMsgBox.innerHTML = renderMessage(message.messageID, messageCreator, creatorAvatar, message.messageText, null, message.createDate) + chatMsgBox.innerHTML;
+            
+            chatMsgBox.innerHTML = renderMessage(message.messageID, messageCreator, creatorAvatar, message.messageText, null, message.createDate, message.isRead) + chatMsgBox.innerHTML;
         }
 
         // Handle message status (sent/seen)
@@ -319,4 +329,29 @@ function renderMessagesBox(friendsNavTab, messages) {
 }
 
 
-export { renderFriendsNavTab, renderMessageSnippet, renderAllMessageSnippets, renderMessage, renderMessagesBox };
+/*
+    Create a new notification
+    @param {object} - notification: {
+        icon:
+        title:
+        body:
+    }
+*/
+function notifyNewMessage(senderID, notification) {
+    let options = {
+        body: notification.body,
+        icon: notification.icon
+    }
+
+    let newNotification = new Notification(notification.title, options);
+    
+    newNotification.onclick = () => {
+        const receiveMsgAudio = new Audio('/audio/new-message-notification.mp3');
+        receiveMsgAudio.play();
+
+        location.href = `/home?notification=true&senderID=${senderID}`;
+    }
+}
+
+
+export { renderFriendsNavTab, renderMessageSnippet, renderAllMessageSnippets, renderMessage, renderMessagesBox, notifyNewMessage };

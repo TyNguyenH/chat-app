@@ -1,9 +1,12 @@
 import CONFIG from './config.js';
-import { renderFriendsNavTab, renderMessageSnippet, renderAllMessageSnippets, renderMessage, renderMessagesBox } from './home-functions.js';
+import { renderFriendsNavTab, renderMessageSnippet, renderAllMessageSnippets, renderMessage, renderMessagesBox, notifyNewMessage } from './home-functions.js';
 
 
 let socket = io();
 socket.connect(`${CONFIG.serverAddress}:${CONFIG.serverPort}`, { secure: true });
+
+const userInfo = document.querySelector('#user-info');
+const userID = userInfo.getAttribute('data-user-id');
 
 // Data to transmit between users
 let messageData = {
@@ -60,9 +63,6 @@ let messageStatus = document.createElement('div');
 messageStatus.setAttribute('id', 'message-status');
 messageStatus.setAttribute('class', 'clear-both float-right text-sm -mt-6');
 
-const userInfo = document.querySelector('#user-info');
-const userID = userInfo.getAttribute('data-user-id');
-
 
 
 
@@ -73,6 +73,11 @@ window.onload = async () => {
     localStorage.clear();
 
     await renderFriendsNavTab();
+
+    // Request access notification
+    if (("Notification" in window) && Notification.permission !== 'granted') {
+        Notification.requestPermission();
+    }
 
     // Assign values to global "friendsNavTab" object
     let tempFriendsNavTab = document.querySelector('#friends-nav-tab');
@@ -122,6 +127,7 @@ window.onload = async () => {
 
             // If messages data found in localStorage, then load them into chat messages box
             if (localStorage.hasOwnProperty(`friend${friendID}`)) {
+                console.log('getting messages from localStorage');
                 const messages = JSON.parse(localStorage.getItem(`friend${friendID}`));
                 renderMessagesBox(friendsNavTab, messages);
             } 
@@ -174,7 +180,9 @@ window.onload = async () => {
             if (userID == recipientID) {
                 let messageIDs = [];
                 for (let message of chatMsgBox.children) {
-                    messageIDs.push(Number.parseInt(message.getAttribute('data-message-id')));
+                    if (message.getAttribute('data-message-is-read') == 'false') {
+                        messageIDs.push(Number.parseInt(message.getAttribute('data-message-id')));
+                    }
                 }
                 messageData.senderID = creatorID;
                 messageData.recipientID = userID;
@@ -183,6 +191,19 @@ window.onload = async () => {
 
                 socket.emit('seen message', messageData);
             }
+        }
+    }
+
+    // Automatically click on friend tab when clicking new message notification on friend-list page
+    {
+        let paramsString = location.href;
+        let hrefParams = new URL(paramsString);
+
+        const notification = hrefParams.searchParams.get('notification');
+        const senderID = hrefParams.searchParams.get('senderID');
+        if (notification == 'true' && friendsNavTab[senderID]) {
+            let friendTab = friendsNavTab[senderID];
+            friendTab.click();
         }
     }
 }
@@ -194,14 +215,18 @@ window.onload = async () => {
 
 // Send current session user info when socket is connected
 socket.on('connected', () => {
+    const userFullName = userInfo.innerHTML.trim();
+    const userAvatarSrc = document.querySelector('#user-avatar').getAttribute('src');
     messageData.senderID = Number.parseInt(userID);
 
     let userData = {
         userID: userID,
+        userFullName: userFullName,
+        userAvatarSrc: userAvatarSrc,
         userSocketID: socket.id
     };
 
-    socket.emit('user info', userData); 
+    socket.emit('user info', userData);
 });
 
 
@@ -267,7 +292,7 @@ chatMsgBox.onscroll = async () => {
                         creatorAvatar = null
                     }
 
-                    chatMsgBox.innerHTML = renderMessage(message.messageID, messageCreator, creatorAvatar, message.messageText, null, message.createDate) + chatMsgBox.innerHTML;
+                    chatMsgBox.innerHTML = renderMessage(message.messageID, messageCreator, creatorAvatar, message.messageText, null, message.createDate, message.isRead) + chatMsgBox.innerHTML;
                 }
 
                 let newMessages = JSON.stringify(messages).replace(/[\[\]]/g, '');
@@ -303,6 +328,7 @@ form.onsubmit = (event) => {
         messageData.messageID = null;
         messageData.isRead = null;
         messageData.recipientID = Number.parseInt(friendID);
+
         let tempMessageText = messageTextInput.value.split('');
         tempMessageText = tempMessageText.map((word) => {
             if (word.match(/[\W]/g) && !word.match(/[\s]/g)) {
@@ -311,8 +337,8 @@ form.onsubmit = (event) => {
                 return word;
             }
         })
-
         messageData.messageText = tempMessageText.join('').trim();
+        
         messageData.createDate = now;
 
         socket.emit('message', messageData);
@@ -368,7 +394,7 @@ socket.on('message', (messageData) => {
         } 
 
         // Render incoming message
-        chatMsgBox.innerHTML += renderMessage(messageID, msgCreator, friendAvatarSrc, messageText, null, messageCreateDate);
+        chatMsgBox.innerHTML += renderMessage(messageID, msgCreator, friendAvatarSrc, messageText, null, messageCreateDate, true);
 
         // Update message snippet
         const message = {
@@ -461,29 +487,27 @@ socket.on('message', (messageData) => {
                 
                 // Initialize a new array of messages
                 if (!localStorage.hasOwnProperty(`friend${friendID}`)) {
-                    (async () => {
-                        const dateNow = new Date(Date.now());
-                        const now = `${dateNow.getDate()}-${dateNow.getMonth() + 1}-${dateNow.getFullYear()} ${dateNow.getHours()}:${dateNow.getMinutes()}:${dateNow.getSeconds()}`;
+                    const dateNow = new Date(Date.now());
+                    const now = `${dateNow.getDate()}-${dateNow.getMonth() + 1}-${dateNow.getFullYear()} ${dateNow.getHours()}:${dateNow.getMinutes()}:${dateNow.getSeconds()}`;
 
-                        const searchOption = `searchCreatorID=[${userID},${friendID}]&searchRecipientID=[${userID},${friendID}]&searchDateTo=${now}&searchLimit=20`;
-                        const resultOption = `resultMessageID=true&resultCreatorID=true&resultRecipientID=true&resultMessageText=true&resultFilePath=true&resultFileType=true&resultCreateDate=true&resultIsRead=true`;
-                        const queryString = `${searchOption}&${resultOption}`;
+                    const searchOption = `searchCreatorID=[${userID},${friendID}]&searchRecipientID=[${userID},${friendID}]&searchDateTo=${now}&searchLimit=20`;
+                    const resultOption = `resultMessageID=true&resultCreatorID=true&resultRecipientID=true&resultMessageText=true&resultFilePath=true&resultFileType=true&resultCreateDate=true&resultIsRead=true`;
+                    const queryString = `${searchOption}&${resultOption}`;
 
-                        await fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/messages/option?${queryString}`)
-                            .then(response => response.json())
-                            .then(data => {
-                                /*
-                                    Array of messages ordered by descending create date
-                                    messages[0]          --> Lastest
-                                    messages[length - 1] --> Oldest
-                                */
+                    fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/messages/option?${queryString}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            /*
+                                Array of messages ordered by descending create date
+                                messages[0]          --> Lastest
+                                messages[length - 1] --> Oldest
+                            */
 
-                                messages = data.messages;
-                            })
+                            messages = data.messages;
 
-                        messages = JSON.stringify(messages);
-                        localStorage.setItem(`friend${friendID}`, messages);
-                    })()   
+                            messages = JSON.stringify(messages);
+                            localStorage.setItem(`friend${friendID}`, messages);
+                        }) 
                 }
             }
         })
@@ -518,7 +542,6 @@ socket.on('seen message', (messageData) => {
             lastestMessageID = Number.parseInt(messageData.messageID);
         }
 
-        console.log(lastestMessageID);
         for (let message of messages) {
             if (lastestMessageID >= message.messageID && !message.isRead) {
                 message.isRead = true;

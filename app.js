@@ -513,7 +513,10 @@ io.on('connection', (socket) => {
     // Get user info when socket is connected
     socket.emit('connected');
     socket.on('user info', (userData) => {
-        activeUsers[userData.userID] = userData.userSocketID;
+        activeUsers[userData.userID] = {};
+        activeUsers[userData.userID].userSocketID = userData.userSocketID;
+        activeUsers[userData.userID].userFullName = userData.userFullName;
+        activeUsers[userData.userID].userAvatarSrc = userData.userAvatarSrc;
 
         console.log(activeUsers);
 
@@ -552,8 +555,8 @@ io.on('connection', (socket) => {
                     socket.emit('message', messageData);
 
                     // Send message to specific recipient
-                    if (activeUsers[messageData.recipientID]) {
-                        io.to(activeUsers[messageData.recipientID]).emit('message', messageData);
+                    if (activeUsers[messageData.recipientID].userSocketID) {
+                        io.to(activeUsers[messageData.recipientID].userSocketID).emit('message', messageData);
                     }
 
                     sql = `
@@ -596,8 +599,14 @@ io.on('connection', (socket) => {
                 }
             })
             console.log(messageData);
-            io.to(activeUsers[messageData.senderID]).emit('seen message', messageData);
-            io.to(activeUsers[messageData.recipientID]).emit('seen message', messageData);
+
+            if (activeUsers[messageData.senderID]) {
+                io.to(activeUsers[messageData.senderID].userSocketID).emit('seen message', messageData);
+            }
+            
+            if (activeUsers[messageData.recipientID]) {
+                io.to(activeUsers[messageData.recipientID].userSocketID).emit('seen message', messageData);
+            }
         }
         console.log(messageData);
     })
@@ -635,7 +644,7 @@ io.on('connection', (socket) => {
 
         const userID = messageData.recipientID;
         if (activeUsers[userID]) {
-            io.to(activeUsers[userID]).emit('typing', messageData);
+            io.to(activeUsers[userID].userSocketID).emit('typing', messageData);
         }
     })
 
@@ -645,7 +654,7 @@ io.on('connection', (socket) => {
 
         const userID = messageData.recipientID;
         if (activeUsers[userID]) {
-            io.to(activeUsers[userID]).emit('stopped typing');
+            io.to(activeUsers[userID].userSocketID).emit('stopped typing');
         }
     })
 
@@ -655,7 +664,7 @@ io.on('connection', (socket) => {
 
         // Broadcast to other sockets that a socket has disconnected
         for (let userID in activeUsers) {
-            if (activeUsers[userID] == socket.id) {
+            if (activeUsers[userID].userSocketID == socket.id) {
                 socket.broadcast.emit('user disconnection', { userID, userSocketID: socket.id });
                 delete activeUsers[userID];
             }
