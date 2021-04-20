@@ -446,6 +446,11 @@ app.post('/login', (req, res) => {
                                 tempLogin[email].loginCount = 5 - 1;
                                 tempLogin[email].startWait = Date.now();
                                 tempLogin[email].waitTime *= 5;
+
+                                // If waiting is exceeding maximum number value, restart to 5 minutes
+                                if (tempLogin[email].waitTime == Number.MAX_SAFE_INTEGER) {
+                                    tempLogin[email].waitTime = 300000;
+                                }
                             }
                         }
                     }
