@@ -1,4 +1,79 @@
 import CONFIG from './config.js';
+import { notifyNewMessage } from './home-functions.js'
+
+
+let socket = io();
+socket.connect(`${CONFIG.serverAddress}:${CONFIG.serverPort}`, { secure: true });
+
+/*
+    {object} activeUsers: {
+        userID: {
+            userFullName:   {string}
+            userSocketID:   {string}
+        }
+    }
+*/
+let activeUsers = {};
+
+// Data to transmit between users
+let messageData = {
+    messageID: null,
+    senderID: '',
+    recipientID: '',
+    recipientGroupID: '',
+    messageText: '',
+    filePath: null,
+    fileType: null,
+    isRead: null,
+    createDate: ''
+};
+
+let notification = null;
+
+// Send current session user info when socket is connected
+socket.on('connected', () => {
+    const userInfo = document.querySelector('#user-info');
+    const userFullName = userInfo.innerHTML.trim();
+    messageData.senderID = Number.parseInt(userID);
+
+    let userData = {
+        userID: userID,
+        userFullName: userFullName,
+        userSocketID: socket.id
+    };
+
+    // Enable notification if granted
+    if (("Notification" in window) && Notification.permission === 'granted') {
+        notification = {
+            icon: '/favicon.ico',
+            title: '',
+            body: ''
+        }
+    }
+
+    socket.emit('user info', userData);
+});
+
+// Receive broadcasted message from server when a new user is connected
+socket.on('active users', (activeUsersData) => {
+    activeUsers = activeUsersData
+    console.log('Active users:', activeUsers);
+});
+
+// Notify new message
+socket.on('message', (messageData) => {
+    const senderID = messageData.senderID;
+    const friendFullName = activeUsers[senderID].userFullName;
+    const avatarSrc = activeUsers[senderID].userAvatarSrc;
+    const messageText = messageData.messageText.replace(/[\\]/g, '').trim();
+
+    if (senderID) {
+        notification.icon = avatarSrc;
+        notification.title = friendFullName.trim();
+        notification.body = messageText;
+        notifyNewMessage(senderID, notification);
+    }
+});
 
 
 function renderFriendCard(friendID, friendAvatarSrc, friendFullName, cardType) {
