@@ -19,3 +19,9 @@
         serverPort:     {number}  // Server main port
     };
     export default CONFIG;
+
+<br>
+
+### :warning: **When building css with purging option:**
+    $ export NODE_ENV=production  (Linux)
+    > set NODE_ENV=production     (Windows)
