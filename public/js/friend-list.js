@@ -34,11 +34,13 @@ let notification = null;
 socket.on('connected', () => {
     const userInfo = document.querySelector('#user-info');
     const userFullName = userInfo.innerHTML.trim();
+    const userAvatarSrc = document.querySelector('#user-avatar').getAttribute('src');
     messageData.senderID = Number.parseInt(userID);
 
     let userData = {
         userID: userID,
         userFullName: userFullName,
+        userAvatarSrc: userAvatarSrc,
         userSocketID: socket.id
     };
 
