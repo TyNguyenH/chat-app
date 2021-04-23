@@ -1,6 +1,7 @@
 database/ChatApp.sql
 database/ChatApp.drawio
 public/js/config.js
+.vscode/
 
 /.env
 /OtherMaterials.txt
