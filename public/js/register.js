@@ -156,10 +156,6 @@ function checkPassword() {
         minLetters = true;
     }
 
-    if (passwordVal.length <= 16) {
-        maxLetters = true;
-    }
-
     if (passwordVal.match(/[A-Z]/g)) {
         capLetter = true;
     }
@@ -177,13 +173,6 @@ function checkPassword() {
         minLettersWarn.classList.add('text-blue-500');
     } else {
         minLettersWarn.classList.remove('text-blue-500');
-    }
-
-    let maxLettersWarn = document.querySelector('#pass-req-max-letter');
-    if (maxLetters) {
-        maxLettersWarn.classList.add('text-blue-500');
-    } else {
-        maxLettersWarn.classList.remove('text-blue-500');
     }
 
     let capLettersWarn = document.querySelector('#pass-req-cap-letter');
@@ -238,9 +227,9 @@ avatarInput.onchange = (fileEvent) => {
     let fileReader = new FileReader();
 
     fileReader.onload = (event) => {
-        let img = document.querySelector('#avatar-preview-img');
-        img.setAttribute('src', event.target.result);
-        img.style.visibility = 'visible';
+        let previewImg = document.querySelector('#avatar-preview-img');
+        previewImg.setAttribute('src', event.target.result);
+        previewImg.style.visibility = 'visible';
     }
 
     let avatarWarning = document.querySelector('#avatar-warning');
@@ -250,5 +239,15 @@ avatarInput.onchange = (fileEvent) => {
     } else {    
         avatarWarning.style.visibility = 'visible';
         avatarWarning.innerHTML = '* Ảnh đại diện không hợp lệ';
+    }
+}
+
+
+let resetButton = document.querySelector('input[type="reset"]');
+resetButton.onclick = () => {
+    let previewImg = document.querySelector('#avatar-preview-img');
+    if (previewImg) {
+        previewImg.setAttribute('src', null);
+        previewImg.style.visibility = 'hidden';
     }
 }
