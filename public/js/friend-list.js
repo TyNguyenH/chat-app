@@ -255,7 +255,7 @@ sentFriendRequestWrapper.innerHTML += `<div class="mb-2 text-xl font-bold">Yêu 
 // Search result wrapper
 let searchResultWrapper = document.createElement('div');
 searchResultWrapper.setAttribute('id', 'result-wrapper');
-searchResultWrapper.setAttribute('class', 'mb-10 mx-auto w-1/3');
+searchResultWrapper.setAttribute('class', 'mb-10 mx-auto max-w-md');
 
 
 window.onload = () => {
