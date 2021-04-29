@@ -2,10 +2,10 @@
   "name": "chat-app",
   "version": "1.0.0",
   "description": "",
-  "main": "app.js",
+  "main": "socket-server.js",
   "scripts": {
     "build-css": "tailwindcss build src/styles.css -o public/css/styles.css",
-    "start": "nodemon --watch app.js"
+    "start": "nodemon --watch socket-server.js"
   },
   "keywords": [],
   "author": "",
