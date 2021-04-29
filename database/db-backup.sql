@@ -50,7 +50,7 @@ SET default_with_oids = false;
 
 CREATE TABLE public.fileinfo (
     fileid bigint NOT NULL,
-    filepath text NOT NULL,
+    filepath text,
     filetype character varying(10) NOT NULL
 );
 
@@ -135,7 +135,7 @@ ALTER SEQUENCE public.groupinfo_groupid_seq OWNED BY public.groupinfo.groupid;
 CREATE TABLE public.messageinfo (
     messageid bigint NOT NULL,
     creatorid integer NOT NULL,
-    messagetext text NOT NULL,
+    messagetext text,
     fileid integer,
     createdate timestamp with time zone NOT NULL
 );
@@ -278,6 +278,34 @@ ALTER TABLE ONLY public.useraccount ALTER COLUMN userid SET DEFAULT nextval('pub
 --
 
 COPY public.fileinfo (fileid, filepath, filetype) FROM stdin;
+3	/imgs/user-imgs/img_251_1619448519902.jpg	jpg
+4	/imgs/user-imgs/img_252_1619450018680.jpg	jpg
+5	/imgs/user-imgs/img_253_1619450164334.jpg	jpg
+6	/imgs/user-imgs/img_254_1619450275242.jpg	jpg
+7	/imgs/user-imgs/img_255_1619450387632.jpg	jpg
+8	/imgs/user-imgs/img_256_1619450387636.jpg	jpg
+9	/imgs/user-imgs/img_257_1619450387641.jpg	jpg
+10	/imgs/user-imgs/img_258_1619450533167.jpg	jpg
+17	/imgs/user-imgs/img_268_1619491850006.jpg	jpg
+18	/imgs/user-imgs/img_270_1619492957245.jpg	jpg
+19	/imgs/user-imgs/img_271_1619494240722.jpg	jpg
+20	/imgs/user-imgs/img_273_1619494331980.jpg	jpg
+21	/imgs/user-imgs/img_274_1619494363178.jpg	jpg
+31	/imgs/user-imgs/img_284_1619496596230.jpg	jpg
+32	/imgs/user-imgs/img_285_1619496596236.jpg	jpg
+33	/imgs/user-imgs/img_286_1619496596269.jpg	jpg
+34	/imgs/user-imgs/img_287_1619496596287.jpg	jpg
+35	/imgs/user-imgs/img_289_1619513656699.jpg	jpg
+36	/imgs/user-imgs/img_290_1619513976429.jpg	jpg
+39	/imgs/user-imgs/img_293_1619515620207.jpg	jpg
+55	/imgs/user-imgs/img_309_1619518630423.jpg	jpg
+56	/imgs/user-imgs/img_310_1619518630696.jpg	jpg
+57	/imgs/user-imgs/img_311_1619518632557.jpg	jpg
+61	/imgs/user-imgs/img_320_1619606216381.jpg	jpg
+62	/imgs/user-imgs/img_319_1619606216474.jpg	jpg
+63	/imgs/user-imgs/img_321_1619606217479.jpg	jpg
+65	/imgs/user-imgs/img_325_1619664854425.jpg	jpg
+67	/imgs/user-imgs/img_327_1619665176859.jpg	jpg
 \.
 
 
@@ -292,15 +320,15 @@ COPY public.friendship (userid1, userid2, friendstatus, actionuserid) FROM stdin
 32	45	friend	32
 27	45	request	27
 31	34	friend	31
+32	27	friend	32
+28	31	friend	28
 28	30	friend	28
 27	30	friend	27
 30	31	friend	30
 31	27	friend	31
 27	28	friend	27
-28	31	friend	28
 31	32	friend	31
 28	32	request	28
-32	27	request	32
 33	32	request	33
 33	27	request	33
 34	30	request	34
@@ -412,6 +440,104 @@ COPY public.messageinfo (messageid, creatorid, messagetext, fileid, createdate) 
 175	31	eeeiii	\N	2021-04-16 21:40:46+07
 178	34	j v ba??	\N	2021-04-16 21:49:15+07
 179	27	ò ó o ò	\N	2021-04-16 21:49:55+07
+180	27	yeah yeah yeah	\N	2021-04-18 12:25:44+07
+181	28	what chu want??	\N	2021-04-18 12:28:22+07
+182	28	haha	\N	2021-04-18 15:40:58+07
+183	45	what chu mean "haha"??	\N	2021-04-18 15:41:30+07
+184	27	khỏe ko man?	\N	2021-04-19 09:09:13+07
+185	28	hả??	\N	2021-04-19 09:13:41+07
+186	30	alo123	\N	2021-04-19 09:14:08+07
+187	30	ola123	\N	2021-04-19 09:15:27+07
+188	30	yeet	\N	2021-04-19 09:16:38+07
+189	30	yeye	\N	2021-04-19 09:21:27+07
+190	30	yoyo	\N	2021-04-19 09:22:20+07
+191	30	yeahyeah	\N	2021-04-19 09:29:52+07
+192	30	haha	\N	2021-04-19 09:31:51+07
+193	30	lololo	\N	2021-04-19 09:37:57+07
+194	30	alala	\N	2021-04-19 09:41:31+07
+195	30	hohoho	\N	2021-04-19 09:41:35+07
+196	30	hehehe	\N	2021-04-19 09:41:38+07
+197	30	yeyeyeyeye	\N	2021-04-19 09:52:42+07
+198	30	hahahaha	\N	2021-04-19 09:52:44+07
+199	30	blahblablha	\N	2021-04-19 09:52:47+07
+200	28	alalsldasd	\N	2021-04-19 09:54:29+07
+201	28	asdfasdf	\N	2021-04-19 09:54:31+07
+202	28	asdf23asdr	\N	2021-04-19 09:54:32+07
+203	28	asdf	\N	2021-04-19 09:54:33+07
+204	28	aasd	\N	2021-04-19 09:54:51+07
+205	30	ulausdf	\N	2021-04-19 09:55:09+07
+206	30	heeheeeheheh	\N	2021-04-19 09:58:04+07
+207	30	asdfasd	\N	2021-04-19 09:58:43+07
+208	30	aasdasd	\N	2021-04-19 09:59:11+07
+209	30	asdasd	\N	2021-04-19 10:00:08+07
+210	30	aasd1123aad	\N	2021-04-19 10:01:34+07
+211	30	11123asdasda	\N	2021-04-19 10:02:32+07
+212	30	aasdasdasd	\N	2021-04-19 10:03:42+07
+213	30	lllllll	\N	2021-04-19 10:05:24+07
+214	30	aaaaaaaaaa	\N	2021-04-19 10:05:35+07
+215	30	bbbbbbbbbb	\N	2021-04-19 10:05:38+07
+216	30	cccccccccccc	\N	2021-04-19 10:05:39+07
+217	30	ddddddddddd	\N	2021-04-19 10:05:40+07
+218	30	eeeeeeeee	\N	2021-04-19 10:05:43+07
+219	28	aaaaaaaa	\N	2021-04-19 10:06:06+07
+220	28	bbbbbbbb	\N	2021-04-19 10:06:17+07
+221	30	hahahaah	\N	2021-04-19 10:07:07+07
+222	30	zzezrasdf	\N	2021-04-19 10:07:10+07
+223	30	ei yo whatsupp, bro??	\N	2021-04-19 10:07:36+07
+224	30	yooooo!!!	\N	2021-04-19 10:07:40+07
+225	30	heeeeeyy!!??	\N	2021-04-19 10:07:44+07
+226	45	zezeze	\N	2021-04-19 10:08:26+07
+227	45	hahahsa	\N	2021-04-19 10:08:32+07
+228	45	muah ha ha haa ha	\N	2021-04-19 10:09:45+07
+229	28	j v ba??	\N	2021-04-19 10:09:59+07
+230	45	hahaha	\N	2021-04-19 10:10:32+07
+231	45	hehehe	\N	2021-04-19 10:13:23+07
+232	45	aasdasd	\N	2021-04-19 10:14:05+07
+233	28	asdfasdf	\N	2021-04-19 10:15:38+07
+234	45	ssdfsd	\N	2021-04-19 10:15:56+07
+235	45	asdasd212	\N	2021-04-19 10:16:43+07
+236	45	asasdasd	\N	2021-04-19 10:17:53+07
+237	45	aasd1asdasd	\N	2021-04-19 10:19:51+07
+238	28	hayy??	\N	2021-04-19 22:03:09+07
+239	30	haa??	\N	2021-04-19 22:08:43+07
+240	28	huh??!	\N	2021-04-19 22:20:16+07
+241	30	zeze	\N	2021-04-19 22:30:04+07
+242	28	haha hehe	\N	2021-04-19 22:31:16+07
+243	28	hehe haha	\N	2021-04-19 22:31:45+07
+244	45	yoyo zeze	\N	2021-04-19 22:32:16+07
+245	30	yeye	\N	2021-04-19 22:32:30+07
+248	28	yep!!	\N	2021-04-22 17:52:50+07
+249	28	how 'bout chu?	\N	2021-04-22 17:53:14+07
+251	28	\N	3	2021-04-26 21:48:39+07
+252	45	\N	4	2021-04-26 22:13:38+07
+253	28	\N	5	2021-04-26 22:16:04+07
+254	45	\N	6	2021-04-26 22:17:55+07
+255	45	\N	7	2021-04-26 22:19:47+07
+256	45	\N	8	2021-04-26 22:19:47+07
+257	45	\N	9	2021-04-26 22:19:47+07
+258	28	\N	10	2021-04-26 22:22:13+07
+313	27	alo, yeah yeah	\N	2021-04-28 16:44:34+07
+314	27	yeah yeah, alo	\N	2021-04-28 16:53:29+07
+284	28	I got some candies for u	31	2021-04-27 11:09:56+07
+285	28	\N	32	2021-04-27 11:09:56+07
+286	28	\N	33	2021-04-27 11:09:56+07
+287	28	\N	34	2021-04-27 11:09:56+07
+268	45	Want some candies??	17	2021-04-27 09:50:49+07
+269	28	nah...	\N	2021-04-27 10:05:19+07
+290	28	\N	36	2021-04-27 15:59:36+07
+271	45	How 'bout this??	19	2021-04-27 10:30:40+07
+272	28	hmmm..., looks good!	\N	2021-04-27 10:30:59+07
+273	45	\N	20	2021-04-27 10:32:11+07
+274	45	This one is also from that brand	21	2021-04-27 10:32:43+07
+293	31	How 'bout this?	39	2021-04-27 16:27:00+07
+320	27	\N	61	2021-04-28 17:36:55+07
+319	27	U like these??	62	2021-04-28 17:36:55+07
+321	27	\N	63	2021-04-28 17:36:55+07
+325	28	I got some chewing gum	65	2021-04-29 09:54:14+07
+327	27	\N	67	2021-04-29 09:59:36+07
+309	31	\N	55	2021-04-27 17:17:09+07
+310	31	\N	56	2021-04-27 17:17:09+07
+311	31	\N	57	2021-04-27 17:17:09+07
 \.
 
 
@@ -445,7 +571,6 @@ COPY public.messagerecipient (messageid, recipientid, recipientgroupid, hasread)
 146	27	\N	t
 147	28	\N	t
 102	31	\N	t
-74	28	\N	f
 148	30	\N	t
 79	31	\N	f
 80	28	\N	t
@@ -505,9 +630,107 @@ COPY public.messagerecipient (messageid, recipientid, recipientgroupid, hasread)
 171	27	\N	t
 172	30	\N	t
 173	27	\N	t
+184	28	\N	t
 175	34	\N	t
 178	31	\N	t
 179	31	\N	t
+180	28	\N	t
+181	27	\N	t
+182	45	\N	t
+183	28	\N	t
+185	30	\N	t
+186	28	\N	t
+187	28	\N	t
+188	28	\N	t
+189	28	\N	t
+190	28	\N	t
+191	28	\N	t
+192	28	\N	t
+193	28	\N	t
+194	28	\N	t
+195	28	\N	t
+196	28	\N	t
+197	28	\N	t
+198	28	\N	t
+199	28	\N	t
+200	30	\N	t
+201	30	\N	t
+202	30	\N	t
+203	30	\N	t
+204	30	\N	t
+205	28	\N	t
+206	28	\N	t
+207	28	\N	t
+208	28	\N	t
+210	28	\N	t
+211	28	\N	t
+212	28	\N	t
+213	28	\N	t
+214	28	\N	t
+215	28	\N	t
+216	28	\N	t
+217	28	\N	t
+218	28	\N	t
+219	30	\N	t
+220	30	\N	t
+221	28	\N	t
+222	28	\N	t
+223	28	\N	t
+224	28	\N	t
+225	28	\N	t
+226	28	\N	t
+227	28	\N	t
+228	28	\N	t
+229	45	\N	t
+230	28	\N	t
+231	28	\N	t
+232	28	\N	t
+233	45	\N	t
+234	28	\N	t
+235	28	\N	t
+236	28	\N	t
+237	28	\N	t
+74	28	\N	t
+238	30	\N	t
+239	28	\N	t
+240	30	\N	t
+242	45	\N	t
+243	45	\N	t
+241	28	\N	t
+245	28	\N	t
+244	28	\N	t
+248	27	\N	t
+249	27	\N	t
+251	45	\N	t
+252	28	\N	t
+253	45	\N	t
+254	28	\N	t
+255	45	\N	t
+256	45	\N	t
+257	45	\N	t
+258	45	\N	t
+268	28	\N	t
+269	45	\N	t
+271	28	\N	t
+272	45	\N	t
+273	28	\N	t
+274	28	\N	t
+313	28	\N	t
+314	28	\N	t
+309	34	\N	t
+310	34	\N	t
+284	30	\N	t
+285	30	\N	t
+286	30	\N	t
+287	30	\N	t
+311	34	\N	t
+290	31	\N	t
+319	28	\N	t
+320	28	\N	t
+321	28	\N	t
+293	28	\N	t
+325	27	\N	t
+327	28	\N	t
 \.
 
 
@@ -557,7 +780,7 @@ COPY public.userinfo (userid, firstname, lastname, avatar, createdate, isactive,
 -- Name: fileinfo_fileid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.fileinfo_fileid_seq', 1, true);
+SELECT pg_catalog.setval('public.fileinfo_fileid_seq', 67, true);
 
 
 --
@@ -571,7 +794,7 @@ SELECT pg_catalog.setval('public.groupinfo_groupid_seq', 1, false);
 -- Name: messageinfo_messageid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.messageinfo_messageid_seq', 179, true);
+SELECT pg_catalog.setval('public.messageinfo_messageid_seq', 327, true);
 
 
 --
