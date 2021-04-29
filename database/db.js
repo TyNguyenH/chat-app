@@ -1,22 +1,23 @@
 require('dotenv').config();
-const { Client } = require('pg');
+const { Pool } = require('pg');
 
-const client = new Client({
+
+const pool = new Pool({
     user: process.env.DB_USER,
     host: process.env.DB_HOST,
     database: 'chatapp',
     password: process.env.DB_PASSWORD,
     port: process.env.DB_PORT
 });
-client.connect();
+
 
 module.exports = {
     query: (text, callback) => {
-        return client.query(text, callback);
+        return pool.query(text, callback);
     },
 
-    async asyncQuery (text) {
-        const res = await client.query(text);
+    asyncQuery: async (text) => {
+        const res = await pool.query(text);
         return res;
     }
 }
