@@ -4,9 +4,22 @@ import CONFIG from './config.js';
 const userInfo = document.querySelector('#user-info');
 const userID = userInfo.getAttribute('data-user-id');
 
+// Element that takes user's file input(s)
+let messageFileInput = document.querySelector('#message-file-input');
+
+// File(s) previewing wrapper
+let filesPreviewWrapper = document.querySelector('#files-preview-wrapper');
+
+// File(s) previewing element (contain all files that are going to be previewed)
+let filesPreview = document.querySelector('#files-preview');
+
 
 // Render friends navigation tab
 async function renderFriendsNavTab() {
+    let friendsNavTab = document.querySelector('#friends-nav-tab');
+    friendsNavTab.innerHTML += 
+        '<div class="py-1 h-10 border-b-2 border-black bg-gray-200 rounded-tr-lg text-lg text-center font-bold">Bạn chat</div>';
+
     const searchOption = `searchFriendStatus=friend`;
     const resultOption = `resultFriendID=true&resultFirstName=true&resultLastName=true&resultAvatar=true&resultFriendStatus=true&resultActionUserID=true`;
     const queryString = `${searchOption}&${resultOption}`;
@@ -15,7 +28,6 @@ async function renderFriendsNavTab() {
         await fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/friend-list/option?${queryString}`)
             .then(response => response.json())
 
-    let friendsNavTab = document.querySelector('#friends-nav-tab');
     const friends = data.friends;
     console.log('friends:', friends);
 
@@ -84,11 +96,17 @@ function renderMessageSnippet(friendTab, message) {
     }
 
     // Reduce message's length if it's too long to dislay
-    if (message.messageText.length > 40) {
-        const shortenedMessage = message.messageText.slice(0, 20) + ' <b>. . .</b>';
-        messageSnippet.innerHTML += shortenedMessage.replace(/[\\]/g, '');
-    } else {
-        messageSnippet.innerHTML += message.messageText.replace(/[\\]/g, '');;
+    if (message.messageText && !message.file) {
+        if (message.messageText.length > 40) {
+            const shortenedMessage = message.messageText.slice(0, 20) + ' <b>. . .</b>';
+            messageSnippet.innerHTML += shortenedMessage.replace(/[\\]/g, '');
+        } else {
+            messageSnippet.innerHTML += message.messageText.replace(/[\\]/g, '');;
+        }
+    }
+
+    if ((message.filePath && !message.messageText) || (message.file && message.messageText)) {
+        messageSnippet.innerHTML += 'Đã gửi hình ảnh';
     }
 
     /* Handle styling of message snippet */
@@ -128,7 +146,7 @@ function renderAllMessageSnippets() {
     for (let friendTab of friendsNavTab) {
         const friendID = friendTab.getAttribute('data-friend-id');
         const searchOption = `searchCreatorID=[${userID},${friendID}]&searchRecipientID=[${userID},${friendID}]&searchDateTo=${now}&searchLimit=1`;
-        const resultOption = `resultMessageID=true&resultCreatorID=true&resultRecipientID=true&resultMessageText=true&resultIsRead=true`;
+        const resultOption = `resultMessageID=true&resultCreatorID=true&resultRecipientID=true&resultMessageText=true&resultFilePath=true&resultFileType=true&resultIsRead=true`;
         const queryString = `${searchOption}&${resultOption}`;
 
         fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/messages/option?${queryString}`)
@@ -169,22 +187,25 @@ function renderMessage(msgID, msgCreator, msgAvatarSrc, msgText, msgImageSrc, ms
         avatarElement = `<div class="flex-shrink-0 self-start"><img src="${msgAvatarSrc}" class="mr-2 w-7 h-7 shadow-md rounded-full"></div>`;
     }
 
-    if (msgText.length > 0) {
+    if (msgText && msgText.length > 0) {
         let textColor = '';
         let bgColor = '';
+        let alignSelf = '';
 
         if (msgCreator == 'my-message') {
             textColor = 'text-white';
             bgColor = 'bg-blue-500';
+            alignSelf = 'self-end';
         }
 
         if (msgCreator == 'friend-message') {
             textColor = 'text-black';
             bgColor = 'bg-gray-200';
+            alignSelf = 'self-start';
         }
 
         msgText = msgText.replace(/[\\]/g, '');
-        textElement = `<div class="message-body rounded-lg px-2 py-1 ${bgColor} break-words text-justify ${textColor}">${msgText}</div>`;
+        textElement = `<div class="message-body flex-shrink-0 ${alignSelf} rounded-lg px-2 py-1 ${bgColor} break-words text-justify ${textColor}">${msgText}</div>`;
     }
 
     if (msgImageSrc) {
@@ -194,7 +215,7 @@ function renderMessage(msgID, msgCreator, msgAvatarSrc, msgText, msgImageSrc, ms
     if (msgTimestamp) {
         let dateNow = new Date(Date.now());
         let date = dateNow.getDate() >= 10 ? dateNow.getDate() : ('0' + dateNow.getDate());
-        let month = dateNow.getMonth() >= 10 ? dateNow.getDate() : ('0' + (dateNow.getMonth() + 1));
+        let month = dateNow.getMonth() >= 10 ? (dateNow.getMonth() + 1) : ('0' + (dateNow.getMonth() + 1));
         let year = dateNow.getFullYear();
 
         // DD-MM-YYYY
@@ -238,14 +259,15 @@ function renderMessage(msgID, msgCreator, msgAvatarSrc, msgText, msgImageSrc, ms
 
     messageElement =
         `<div class="${messageStyling}" data-message-id=${msgID} ${msgDataIsRead}>
-            <div class="flex flex-row justify-between">
+            <div class="flex flex-row">
                 ${avatarElement}
-                ${textElement}
-                ${imgElement}
+                <div class="flex flex-col justify-between">
+                    ${textElement}
+                    ${imgElement}
+                </div>
             </div>
             ${timestampElement}
         </div>`;
-
     return messageElement;
 }
 
@@ -287,8 +309,6 @@ function renderMessagesBox(friendsNavTab, messages) {
                 messageCreator = 'my-message';
             }
 
-            // TODO: handle message file if filePath & fileType found in message
-
             const creatorID = message.creatorID;
             const friendTab = friendsNavTab[creatorID];
             let creatorAvatar = '';
@@ -297,8 +317,13 @@ function renderMessagesBox(friendsNavTab, messages) {
             } else {
                 creatorAvatar = null
             }
-            
-            chatMsgBox.innerHTML = renderMessage(message.messageID, messageCreator, creatorAvatar, message.messageText, null, message.createDate, message.isRead) + chatMsgBox.innerHTML;
+
+            let imgSrc = null;
+            if (message.filePath) {
+                imgSrc = message.filePath;
+            }
+
+            chatMsgBox.innerHTML = renderMessage(message.messageID, messageCreator, creatorAvatar, message.messageText, imgSrc, message.createDate, message.isRead) + chatMsgBox.innerHTML;
         }
 
         // Handle message status (sent/seen)
@@ -329,6 +354,114 @@ function renderMessagesBox(friendsNavTab, messages) {
 }
 
 
+/* 
+    Synchronize (merge) 2 array of messages together 
+    @param {array} messagesArray1, {array} messagesArray2: [
+        {object}: {
+            messageID:              {number}
+            creatorID:              {number}
+            recipientID:            {number}
+            recipientGroupID:       {number}
+            messageText:            {string}
+            filePath:               {string}
+            fileType:               {string}
+            isRead:                 {boolean}
+            createDate:             {string}
+        },
+        ...
+    ]
+*/
+function syncMessages(messagesArray1, messagesArray2) {
+    if (Array.isArray(messagesArray1) && Array.isArray(messagesArray2)) {
+        const filterObject = (object) => {
+            let result = {};
+
+            for (let key of Object.keys(object)) {
+                if (object.hasOwnProperty(key) && object[key]) {
+                    result[key] = object[key];
+                }
+            }
+
+            return result;
+        };
+
+        const checkMessageInfo = (message) => {
+            if (message) {
+                let legit = true;
+
+                if (!message.creatorID || !message.recipientID || (!message.messageText || !message.filePath) || !message.createDate || (message.isRead != true || message.isRead != false)) {
+                    legit = false;
+                }
+
+                return legit;
+            } else {
+                return false;
+            }
+        }
+
+        const array1Len = messagesArray1.length;
+        const array2Len = messagesArray2.length;
+        let messagesResult = [];
+        let index1 = 0;
+        let index2 = 0;
+
+        while (index1 < array1Len || index2 < array2Len) {
+            if (messagesArray1[index1].messageID == messagesArray2[index2].messageID) {
+                const message1 = filterObject(messagesArray1[index1]);
+                const message2 = filterObject(messagesArray2[index2]);
+                if (Object.keys(message1).length > Object.keys(message2).length) {
+                    messagesResult.push(message1);
+                }
+
+                if (Object.keys(message1).length < Object.keys(message2).length) {
+                    messagesResult.push(message2);
+                }
+
+                if (Object.keys(message1).length == Object.keys(message2).length) {
+                    if (checkMessageInfo(message1)) {
+                        messagesResult.push(message1);
+                    }
+
+                    if (checkMessageInfo(message2)) {
+                        messagesResult.push(message2);
+                    }
+                }
+
+                index1 += 1;
+                index2 += 1;
+            }
+
+            if ((messagesArray1[index1] && messagesArray2[index2]) && messagesArray1[index1].messageID > messagesArray2[index2].messageID) {
+                messagesResult.push(messagesArray1[index1]);
+                index1 += 1;
+            }
+
+            if ((messagesArray1[index1] && messagesArray2[index2]) && messagesArray1[index1].messageID < messagesArray2[index2].messageID) {
+                messagesResult.push(messagesArray2[index2]);
+                index2 += 1;
+            }
+
+
+            if (index1 == array1Len && index2 < array2Len) {
+                while (index2 < array2Len) {
+                    messagesResult.push(messagesArray2[index2]);
+                    index2 += 1;
+                }
+            }
+
+            if (index2 == array2Len && index1 < array1Len) {
+                while (index1 < array1Len) {
+                    messagesResult.push(messagesArray1[index1]);
+                    index1 += 1;
+                }
+            }
+        }
+
+        return messagesResult;
+    }
+}
+
+
 /*
     Create a new notification
     @param {object} - notification: {
@@ -354,4 +487,95 @@ function notifyNewMessage(senderID, notification) {
 }
 
 
-export { renderFriendsNavTab, renderMessageSnippet, renderAllMessageSnippets, renderMessage, renderMessagesBox, notifyNewMessage };
+// Promise-wrapped file reading as data URL
+function readFileAsDataURLAsync(file) {
+    return new Promise((resolve, reject) => {
+        let fileReader = new FileReader();
+        
+        fileReader.onload = () => {
+            resolve(fileReader.result);
+        };
+
+        fileReader.onerror = reject;
+
+        fileReader.readAsDataURL(file);
+    })
+}
+
+
+// Promise-wrapped file reading as array buffer
+function readFileAsArrayBufferAsync(file) {
+    return new Promise((resolve, reject) => {
+        let fileReader = new FileReader();
+
+        fileReader.onload = () => {
+            resolve(fileReader.result);
+        };
+
+        fileReader.onerror = reject;
+
+        fileReader.readAsArrayBuffer(file);
+    })
+}
+
+
+// Preview image(s) before sending image(s)
+function previewFiles() {
+    // Unhide image(s) previewing
+    if (messageFileInput.files.length > 0) {
+        if (filesPreviewWrapper.classList.contains('hidden')) {
+            filesPreviewWrapper.classList.remove('hidden');
+        }
+
+        let counter = 0;
+        filesPreview.innerHTML = '';
+        for (let file of messageFileInput.files) {
+            if (file.type.includes('image')) {
+                let fileReader = new FileReader();
+
+                // Create loading div to represent loading image status
+                fileReader.onloadstart = () => {
+                    let loadingElement = document.createElement('div');
+                    loadingElement.setAttribute('id', `loading-img-preview-${counter}`);
+                    loadingElement.setAttribute('class', 'm-2 p-2 w-20 flex-grow-0 font-semibold text-center align-middle');
+                    loadingElement.innerHTML = 'Đang tải . . .';
+
+                    filesPreview.appendChild(loadingElement);
+                }
+
+                // Show image previewing and delete loading image status when image is fully loaded
+                fileReader.onload = (event) => {
+                    let imageElement = document.createElement('img');
+                    imageElement.setAttribute('class', 'm-2 w-20 flex-grow-0');
+                    imageElement.setAttribute('src', event.target.result);
+
+                    if (document.querySelector(`#loading-img-preview-${counter}`)) {
+                        let loadingElement = document.querySelector(`#loading-img-preview-${counter}`);
+                        filesPreview.replaceChild(imageElement, loadingElement);
+                    }
+                }
+
+                fileReader.readAsDataURL(file);
+
+                counter += 1;
+            }
+        }
+
+        // Automatically scroll to bottom of page, so that user can see image(s) previewing
+        window.scrollTo(0, document.body.scrollHeight);
+    }
+}
+
+
+export { 
+    renderFriendsNavTab,
+    renderMessageSnippet,
+    renderAllMessageSnippets,
+    renderMessage,
+    renderMessagesBox,
+    syncMessages,
+    notifyNewMessage,
+    readFileAsDataURLAsync,
+    readFileAsArrayBufferAsync,
+    previewFiles 
+};

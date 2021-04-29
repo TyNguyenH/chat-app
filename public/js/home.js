@@ -1,5 +1,5 @@
 import CONFIG from './config.js';
-import { renderFriendsNavTab, renderMessageSnippet, renderAllMessageSnippets, renderMessage, renderMessagesBox, notifyNewMessage } from './home-functions.js';
+import { renderFriendsNavTab, renderMessageSnippet, renderAllMessageSnippets, renderMessage, renderMessagesBox, syncMessages, previewFiles } from './home-functions.js';
 
 
 let socket = io();
@@ -15,18 +15,30 @@ let messageData = {
     recipientID: '',
     recipientGroupID: '',
     messageText: '',
-    filePath: null,
+    file: null,
+    startChunk: null,
+    endChunk: null,
+    fileSize: null,
     fileType: null,
     isRead: null,
     createDate: ''
 };
 
+/* 
+    Temporary whole file for transfering (this file will be sliced into chunks so that the client can send each chunk at a time) 
+    tempFileChunks = {
+        messageID: ArrayBuffer {Uint8Array},
+        ...
+    }
+*/
+let tempFileChunks = {};
+
 /*
     This object is used for fetching old messages and merging them into new ones
     messageCount = {
         friendID: {
-            offset:     {number}
-            limit:      {number}
+            offset: {number}
+            limit:  {number}
         }
     }
 */ 
@@ -63,6 +75,15 @@ let messageStatus = document.createElement('div');
 messageStatus.setAttribute('id', 'message-status');
 messageStatus.setAttribute('class', 'clear-both float-right text-sm -mt-6');
 
+// Element that takes user's file input(s)
+let messageFileInput = document.querySelector('#message-file-input');
+
+// File(s) previewing wrapper
+let filesPreviewWrapper = document.querySelector('#files-preview-wrapper');
+
+// File(s) previewing element (contain all files that are going to be previewed)
+let filesPreview = document.querySelector('#files-preview');
+
 
 
 
@@ -83,9 +104,11 @@ window.onload = async () => {
     let tempFriendsNavTab = document.querySelector('#friends-nav-tab');
     for (let friendTab of tempFriendsNavTab.children) {
         const friendID = friendTab.getAttribute('data-friend-id');
-        friendsNavTab[friendID] = friendTab;
+        if (friendID) {
+            friendsNavTab[friendID] = friendTab;
+        }
     }
-
+console.log(friendsNavTab);
     renderAllMessageSnippets();
     
     /* Add onclick event to each friend tab */
@@ -171,9 +194,6 @@ window.onload = async () => {
                     })
             }
 
-            // Automatically scroll down to bottom
-            chatMsgBox.scrollTop = chatMsgBox.scrollHeight;
-
             // Send seen message(s) status to server
             const recipientID = messageSnippet.getAttribute('data-message-recipient-id');
             const creatorID = messageSnippet.getAttribute('data-message-creator-id');
@@ -194,6 +214,11 @@ window.onload = async () => {
                     socket.emit('seen message', messageData);
                 }
             }
+
+            // Automatically scroll down to bottom
+            setTimeout(() => {
+                chatMsgBox.scrollTop = chatMsgBox.scrollHeight;
+            }, 50);
         }
     }
 
@@ -270,21 +295,19 @@ chatMsgBox.onscroll = async () => {
         await fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/messages/option?${queryString}`)
         .then(response => response.json())
         .then(data => {
-            const messages = data.messages;
-            console.log(messages);
+            const newMessages = data.messages;
+            console.log(newMessages);
 
-            if (messages.length > 0) {
+            if (newMessages.length > 0) {
                 messagesCount[friendID].offset += 20;
 
-                for (let message of messages) {
+                for (let message of newMessages) {
                     let messageCreator = '';
                     if (message.creatorID != userID) {
                         messageCreator = 'friend-message';
                     } else {
                         messageCreator = 'my-message';
                     }
-
-                    // TODO: handle message file if filePath & fileType found in message
 
                     const creatorID = message.creatorID;
                     const friendTab = friendsNavTab[creatorID];
@@ -295,10 +318,13 @@ chatMsgBox.onscroll = async () => {
                         creatorAvatar = null
                     }
 
-                    chatMsgBox.innerHTML = renderMessage(message.messageID, messageCreator, creatorAvatar, message.messageText, null, message.createDate, message.isRead) + chatMsgBox.innerHTML;
-                }
+                    let imgSrc = '';
+                    if (message.filePath) {
+                        imgSrc = message.filePath;
+                    }
 
-                let newMessages = JSON.stringify(messages).replace(/[\[\]]/g, '');
+                    chatMsgBox.innerHTML = renderMessage(message.messageID, messageCreator, creatorAvatar, message.messageText, imgSrc, message.createDate, message.isRead) + chatMsgBox.innerHTML;
+                }
 
                 navigator.storage.estimate()
                 .then(data => {
@@ -306,10 +332,9 @@ chatMsgBox.onscroll = async () => {
                     const usage = data.usage;
 
                     if (usage < quota && localStorage.hasOwnProperty(`friend${friendID}`)) {
-                        let currentMessages = localStorage.getItem(`friend${friendID}`);
-                        currentMessages = currentMessages.replace(']', '');
-                        currentMessages = currentMessages + ',' + newMessages + ']';
-                        localStorage.setItem(`friend${friendID}`, currentMessages);
+                        let currentMessages = JSON.parse(localStorage.getItem(`friend${friendID}`));
+                        const finalMessages = syncMessages(newMessages, currentMessages);
+                        localStorage.setItem(`friend${friendID}`, JSON.stringify(finalMessages));
                     }
                 })
             }
@@ -324,14 +349,12 @@ chatMsgBox.onscroll = async () => {
 form.onsubmit = (event) => {
     const recipientNameBar = document.querySelector('#message-recipient-name-bar');
     const friendID = recipientNameBar.getAttribute('data-friend-id');
-    if (friendID && messageTextInput.value.length > 0 && messageTextInput.value.length < 2**28) {
-        const dateNow = new Date(Date.now());
-        const now = `${dateNow.getDate()}-${dateNow.getMonth() + 1}-${dateNow.getFullYear()} ${dateNow.getHours()}:${dateNow.getMinutes()}:${dateNow.getSeconds()}`;
 
+    if (friendID) {
         messageData.messageID = null;
         messageData.isRead = null;
-        messageData.recipientID = Number.parseInt(friendID);
 
+        // Add backslash in front of each special character
         let tempMessageText = messageTextInput.value.split('');
         tempMessageText = tempMessageText.map((word) => {
             if (word.match(/[\W]/g) && !word.match(/[\s]/g)) {
@@ -340,18 +363,166 @@ form.onsubmit = (event) => {
                 return word;
             }
         })
-        messageData.messageText = tempMessageText.join('').trim();
-        
+
+        // DD-MM-YYYY HH24:MM:SS
+        const dateNow = new Date(Date.now());
+        const date = dateNow.getDate() >= 10 ? dateNow.getDate() : ('0' + dateNow.getDate());
+        const month = dateNow.getMonth() >= 10 ? (dateNow.getMonth() + 1) : ('0' + (dateNow.getMonth() + 1));
+        const year = dateNow.getFullYear();
+        const now = `${date}-${month}-${year} ${dateNow.getHours()}:${dateNow.getMinutes()}:${dateNow.getSeconds()}`;
+
         messageData.createDate = now;
 
-        socket.emit('message', messageData);
-        messageTextInput.value = '';
+        // Handling only text transfering
+        if (messageFileInput.files.length == 0 && messageTextInput.value.length > 0 && messageTextInput.value.length < (2**28)) {
+            messageData.messageText = tempMessageText.join('').trim();
+            messageData.recipientID = Number.parseInt(friendID);
 
-        const sentMsgAudio = new Audio('/audio/send-message-sound.mp3');
-        sentMsgAudio.play();
+            socket.emit('message', messageData);
+            messageTextInput.value = '';
+
+            // Play sending message sound
+            const sentMsgAudio = new Audio('/audio/send-message-sound.mp3');
+            sentMsgAudio.play();
+        }
+        
+        // Handling file transfering (images) with messageText (optional)
+        if (messageFileInput.files.length > 0) {
+            // Add messageText if found
+            if (tempMessageText) {
+                messageData.messageText = tempMessageText.join('').trim();
+            }
+
+            for (let file of messageFileInput.files) {
+                // Send whole array buffer if file size < 500KB
+                if (file.size < 500000 && file.type.includes('image')) {
+                    let fileReader = new FileReader();
+
+                    fileReader.onload = (event) => {
+                        messageData.file = new Uint8Array(event.target.result);
+                        messageData.fileType = file.type;
+
+                        messageData.recipientID = Number.parseInt(friendID);
+                        socket.emit('message', messageData);
+
+                        // Delete mesageText after sending first file with mesageText
+                        if (messageData.messageText) {
+                            messageData.messageText = null;
+                        }
+                    }
+
+                    fileReader.readAsArrayBuffer(file);
+                }
+
+                // Send separate array buffer chunks if file size is >= 500KB
+                if (file.size >= 500000 && file.type.includes('image')) {
+                    let fileReader = new FileReader();
+
+                    fileReader.onload = (event) => {
+                        let fileChunks = new Uint8Array(event.target.result);
+
+                        messageData.recipientID = Number.parseInt(friendID);
+                        messageData.startChunk = 0;
+                        messageData.endChunk = 300000;
+                        messageData.fileSize = fileChunks.byteLength;
+                        messageData.file = fileChunks.slice(messageData.startChunk, messageData.endChunk);
+                        messageData.fileType = file.type;
+
+                        socket.emit('start chunk', messageData, (messageID) => {
+                            // Receive a messageID when initialize first chunk of whole file
+                            tempFileChunks[messageID] = fileChunks;
+                        });
+
+                        // Delete mesageText after sending first file with mesageText
+                        if (messageData.messageText) {
+                            messageData.messageText = null;
+                        }
+
+                        // Display file transfering status
+                        if (!document.querySelector('#message-status')) {
+                            messageStatus.innerHTML = '<br><br>Đang gửi . . .';
+                            chatMsgBox.appendChild(messageStatus);
+                        } else {
+                            document.querySelector('#message-status').remove();
+                            messageStatus.innerHTML = '<br><br>Đang gửi . . .';
+                            chatMsgBox.appendChild(messageStatus);
+                        }
+
+                        chatMsgBox.scrollTop = chatMsgBox.scrollHeight;
+                    }
+
+                    fileReader.readAsArrayBuffer(file);
+                }
+            }
+
+            // Remove image previewing and empty message text input when done load-start
+            if (document.querySelector('#cancel-files-preview')) {
+                document.querySelector('#cancel-files-preview').click();
+                messageTextInput.value = '';
+            }
+
+            // Play sending message sound
+            const sentMsgAudio = new Audio('/audio/send-message-sound.mp3');
+            sentMsgAudio.play();
+        }
     }
 
     event.preventDefault();
+}
+
+
+// Handling file chunk request from server
+socket.on('request next chunk', (messageData) => {
+    // Get the correct whole file
+    const messageID = messageData.messageID;
+    const fileChunks = tempFileChunks[messageID];
+
+    if (fileChunks) {
+        let start = messageData.startChunk + 300000;
+        let end = messageData.endChunk + 300000;
+        const fileSize = messageData.fileSize;
+
+        if (start >= fileSize || end >= fileSize) {
+            if (start >= fileSize) {
+                start = fileSize;
+                end = fileSize;
+
+                messageData.startChunk = fileSize;
+                messageData.endChunk = fileSize;
+            }
+
+            if (end >= fileSize) {
+                start = messageData.endChunk;
+                end = fileSize;
+
+                messageData.startChunk = messageData.endChunk;
+                messageData.endChunk = fileSize;
+            }
+
+            messageData.file = fileChunks.slice(start, end);
+            socket.emit('end chunk', messageData);
+        } else {
+            messageData.file = fileChunks.slice(start, end);
+            messageData.startChunk = messageData.startChunk + 300000;
+            messageData.endChunk = messageData.startChunk + 300000;
+            socket.emit('next chunk', messageData);
+        }
+    }
+})
+
+
+// Image(s) previewing
+messageFileInput.onchange = previewFiles;
+
+
+// Hide away image(s) previewing and remove file(s) input
+let cancelFilesPreview = document.querySelector('#cancel-files-preview');
+cancelFilesPreview.onclick = () => {
+    filesPreview.innerHTML = '';
+    if (!filesPreviewWrapper.classList.contains('hidden')) {
+        filesPreviewWrapper.classList.add('hidden');
+        messageFileInput.value = null;
+    }
 }
 
 
@@ -381,6 +552,9 @@ socket.on('message', (messageData) => {
     const messageRecipientID = messageData.recipientID;
     const messageText = messageData.messageText;
     const messageCreateDate = messageData.createDate;
+    const messageFilePath = messageData.file;
+    const messageFileType = messageData.fileType;
+
     const recipientNameBar = document.querySelector('#message-recipient-name-bar');
     const friendIdBar = recipientNameBar.getAttribute('data-friend-id');
 
@@ -394,10 +568,16 @@ socket.on('message', (messageData) => {
         } else {
             friendAvatarSrc = null;
             friendTab = friendsNavTab[messageData.recipientID];
-        } 
+        }
+
+        // Get image source if found
+        let imgSrc = null;
+        if (messageData.file && messageData.fileType) {
+            imgSrc = messageData.file;
+        }
 
         // Render incoming message
-        chatMsgBox.innerHTML += renderMessage(messageID, msgCreator, friendAvatarSrc, messageText, null, messageCreateDate, true);
+        chatMsgBox.innerHTML += renderMessage(messageID, msgCreator, friendAvatarSrc, messageText, imgSrc, messageCreateDate, true);
 
         // Update message snippet
         const message = {
@@ -405,11 +585,13 @@ socket.on('message', (messageData) => {
             creatorID: creatorID,
             recipientID: messageRecipientID,
             messageText: messageText,
+            filePath: messageFilePath,
+            fileType: messageFileType,
             isRead: true
         }
         renderMessageSnippet(friendTab, message);
 
-        // Send seen message data if message's senderID is equal to friendID
+        // Send seen message data if message's senderID == friendID
         if (messageData.senderID == friendIdBar) {
             socket.emit('seen message', messageData);
             messageData.isRead = true;
@@ -433,6 +615,8 @@ socket.on('message', (messageData) => {
                 creatorID: creatorID,
                 recipientID: messageRecipientID,
                 messageText: messageText,
+                filePath: messageFilePath,
+                fileType: messageFileType,
                 isRead: false
             }
             renderMessageSnippet(friendTab, message);
@@ -464,7 +648,7 @@ socket.on('message', (messageData) => {
                 recipientID: Number.parseInt(messageData.recipientID),
                 recipientGroupID: Number.parseInt(messageData.recipientGroupID),
                 messageText: messageData.messageText,
-                filePath: messageData.filePath,
+                filePath: messageData.file,
                 fileType: messageData.fileType,
                 isRead: messageData.isRead,
                 createDate: messageData.createDate
@@ -478,17 +662,14 @@ socket.on('message', (messageData) => {
             }            
 
             if (data.usage < data.quota) {
-                let messages;
-
                 // Add new message to the beginning of the messages array
                 if (localStorage.hasOwnProperty(`friend${friendID}`)) {
-                    messages = localStorage.getItem(`friend${friendID}`);
-                    messages = messages.replace('[', '');
-                    messages = '[' + JSON.stringify(newMessage) + ',' + messages;
-                    localStorage.setItem(`friend${friendID}`, messages);
+                    let existingMessages = JSON.parse(localStorage.getItem(`friend${friendID}`));
+                    let newMessages = syncMessages([ newMessage ], existingMessages);
+                    localStorage.setItem(`friend${friendID}`, JSON.stringify(newMessages));
                 }
                 
-                // Initialize a new array of messages
+                // Initialize a new array of messages if messages are not found in localStorage
                 if (!localStorage.hasOwnProperty(`friend${friendID}`)) {
                     const dateNow = new Date(Date.now());
                     const now = `${dateNow.getDate()}-${dateNow.getMonth() + 1}-${dateNow.getFullYear()} ${dateNow.getHours()}:${dateNow.getMinutes()}:${dateNow.getSeconds()}`;
@@ -506,7 +687,7 @@ socket.on('message', (messageData) => {
                                 messages[length - 1] --> Oldest
                             */
 
-                            messages = data.messages;
+                            let messages = data.messages;
 
                             messages = JSON.stringify(messages);
                             localStorage.setItem(`friend${friendID}`, messages);
@@ -555,7 +736,7 @@ socket.on('seen message', (messageData) => {
     }
 
     if (document.querySelector('#message-status') && senderID == userID) {
-        messageStatus.innerHTML = 'Đã xem';
+        document.querySelector('#message-status').innerHTML = 'Đã xem';
     }
 });
 
