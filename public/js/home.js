@@ -108,7 +108,8 @@ window.onload = async () => {
             friendsNavTab[friendID] = friendTab;
         }
     }
-console.log(friendsNavTab);
+
+    console.log(friendsNavTab);
     renderAllMessageSnippets();
     
     /* Add onclick event to each friend tab */
@@ -351,6 +352,7 @@ form.onsubmit = (event) => {
     const friendID = recipientNameBar.getAttribute('data-friend-id');
 
     if (friendID) {
+        messageData.senderID = userID;
         messageData.messageID = null;
         messageData.isRead = null;
 
