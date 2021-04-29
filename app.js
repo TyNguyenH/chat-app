@@ -465,6 +465,7 @@ app.use('/api/', serverAPI);
 
 
 // Return 404 page when no resources found
+const staticFileCacheTime = 86400000 // (24-hour)
 app.use((req, res, next) => {
     // Redirect to 404 page if requested resource is notification page
     let requestResource = req.url.replace('/', '');
@@ -489,7 +490,9 @@ app.use((req, res, next) => {
         // Move to serving static files
         next();
     }
-}, express.static(path.join(__dirname, 'public')));
+}, express.static(path.join(__dirname, 'public'), {
+    maxAge: staticFileCacheTime
+}));
 
 
 module.exports = app;
