@@ -10,7 +10,7 @@ const serverAPI = require('./routes/server-api');
 
 require('dotenv').config();
 const db = require('./database/db');
-// const dbFunctions = require('./db-functions');
+
 
 
 
@@ -275,10 +275,12 @@ app.post('/register', (req, res) => {
 
 // Authenticate user email
 app.get('/register/auth/:email/:secretCode', (req, res) => {
-    let email = req.params.email;
+    const emailPattern = /^\b[\w\.-]+@[\w\.-]+\.\w{1,}\b$/g;
+    const email = req.params.email;
+    const secretCode = req.params.secretCode;
 
-    if (tempRegister[email]
-        && req.params.secretCode == tempRegister[email].secretCode
+    if (tempRegister[email] && email.match(emailPattern)
+        && secretCode == tempRegister[email].secretCode
         && Date.now() - tempRegister[email].beginTime <= tempRegister[email].expire) {
         
         let hashedPass = tempRegister[email].hashedPass;
