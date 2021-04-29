@@ -69,7 +69,7 @@ socket.on('message', (messageData) => {
     const avatarSrc = activeUsers[senderID].userAvatarSrc;
     const messageText = messageData.messageText.replace(/[\\]/g, '').trim();
 
-    if (senderID) {
+    if (senderID && Notification.permission === 'granted') {
         notification.icon = avatarSrc;
         
         if (messageData.file && messageData.fileType) {
