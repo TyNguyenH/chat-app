@@ -1,13 +1,10 @@
 const fs = require('fs');
-const https = require('https');
 const path = require('path');
-const FileType = require('file-type');
 const crypto = require('crypto');
 
 const express = require('express');
 const nodemailer = require('nodemailer');
 const multer = require('multer');
-const socket = require('socket.io');
 const session = require('express-session');
 const serverAPI = require('./routes/server-api');
 
@@ -19,20 +16,7 @@ const db = require('./database/db');
 
 
 
-// Redirect http to https
-const http = express();
-http.get('*', function (req, res) {
-    console.log(`REDIRECT TO ==> ${process.env.HOST_ADDRESS}:${process.env.HOST_PORT_SECURE}${req.url}`);
-    res.redirect(`${process.env.HOST_ADDRESS}:${process.env.HOST_PORT_SECURE}${req.url}`);
-})
-http.listen(process.env.HOST_PORT);
-
-
 const app = express();
-let httpsServer = https.createServer({
-    key: fs.readFileSync('./server.key'),
-    cert: fs.readFileSync('./server.cert')
-}, app).listen(process.env.HOST_PORT_SECURE);
 
 
 // Logger
@@ -66,12 +50,12 @@ app.disable('x-powered-by');
 
 // Allow only same origin
 app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', 'http://192.168.7.20:3000');
+    res.setHeader('Access-Control-Allow-Origin', `${process.env.HOST_ADDRESS}:${process.env.HOST_PORT_SECURE}`);
     next();
 })
 
 
-// Home page
+// Home route
 app.get('/', (req, res) => {
     // Prevent browser from caching home page
     res.header('Cache-Control', 'no-store, max-age=0');
@@ -187,21 +171,6 @@ app.get('/friend-list', (req, res) => {
     }
 */ 
 let tempRegister = {}
-
-
-/* 
-    Store temporary login info
-    If user failed logging in every 5 times, server will force user to wait 5^n (minutes), n > 1
-
-    tempLogin = {
-        email: {
-            loginCount: {number}
-            startWait:  {number (mili seconds)}
-            waitTime:   {number (mili seconds)}
-        }
-    }
-*/
-let tempLogin = {}
 
 
 // Set storage engine
@@ -359,20 +328,36 @@ app.get('/register/auth/:email/:secretCode', (req, res) => {
         
         res.sendFile('./public/unsuccessful-reg.html', { root: __dirname });
     }
-})
+});
+
+
+/* 
+    Store temporary login info
+    If user failed logging in every 5 times, server will force user to wait 5^n (minutes), n > 1
+
+    tempLogin = {
+        email: {
+            loginCount: {number}
+            startWait:  {number (mili seconds)}
+            waitTime:   {number (mili seconds)}
+        },
+        ...
+    }
+*/
+let tempLogin = {};
 
 
 // Handling login data
 app.use(express.urlencoded({ extended: true }));
 app.post('/login', (req, res) => {
-    console.log(tempLogin);
-
     const invalidLetters = /[^\w@\.-]/g;
     let email = req.body.email.replace(invalidLetters, '');
 
     // Checking login attempt
     if (tempLogin[email] && (tempLogin[email].loginCount == 0) && (Date.now() - tempLogin[email].startWait <= tempLogin[email].waitTime)) {
+        // Remaining time (in second)
         let remainingWaitTime = (tempLogin[email].waitTime - (Date.now() - tempLogin[email].startWait)) / 1000;
+
         if (remainingWaitTime >= 60) {
             const minute = Math.ceil(remainingWaitTime / 60);
             remainingWaitTime = `${minute} phút`;
@@ -418,7 +403,7 @@ app.post('/login', (req, res) => {
                     let message = '';
 
                     if (!correctEmail) {
-                        message = 'Sai email!';
+                        message = 'Tài khoản email không tồn tại !';
                     } else if (!correctPassword) {
                         message = 'Sai mật khẩu !';
 
@@ -429,16 +414,16 @@ app.post('/login', (req, res) => {
                             tempLogin[email].startWait = Date.now();
                             tempLogin[email].waitTime = 0;
                         }
+
                         // Continue counting login attempts
                         else {
-                            // Initialize waiting time
-                            if (tempLogin[email].loginCount == 0 && tempLogin[email].waitTime == 0) {
-                                tempLogin[email].waitTime = 300000;
-                            }
-
                             // Decrease login attempts
                             if (tempLogin[email].loginCount > 0) {
                                 tempLogin[email].loginCount -= 1;
+
+                                if (tempLogin[email].loginCount == 0 && tempLogin[email].waitTime == 0) {
+                                    tempLogin[email].waitTime = 300000;
+                                }
                             }
 
                             // Reset counting login attempts & increase waiting time, if waiting time is over
@@ -469,7 +454,9 @@ app.post('/login', (req, res) => {
                 }
             }
         });
-    }    
+    }
+
+    console.log('Login attempt(s):', tempLogin);
 });
 
 
@@ -499,181 +486,10 @@ app.use((req, res, next) => {
         console.log('Wrong path !');
         res.redirect('/404.html');
     } else {
+        // Move to serving static files
         next();
     }
 }, express.static(path.join(__dirname, 'public')));
 
 
-
-
-
-
-// Handling chat io
-let activeUsers = {};
-let io = socket(httpsServer);
-io.on('connection', (socket) => {
-    console.log('new socket | socketID: ' + socket.id);
-
-
-    // Get user info when socket is connected
-    socket.emit('connected');
-    socket.on('user info', (userData) => {
-        activeUsers[userData.userID] = {};
-        activeUsers[userData.userID].userSocketID = userData.userSocketID;
-        activeUsers[userData.userID].userFullName = userData.userFullName;
-        activeUsers[userData.userID].userAvatarSrc = userData.userAvatarSrc;
-
-        console.log(activeUsers);
-
-        // Emit back active users data to newly connected socket
-        io.sockets.emit('active users', activeUsers);
-    });
-
-
-    socket.on('message', (messageData) => {
-        const creatorID = Number.parseInt(messageData.senderID);
-        const recipientID = Number.parseInt(messageData.recipientID);
-
-        // Save message data into MessageInfo and MessageRecipient table
-        if (messageData.messageText && messageData.recipientID && !messageData.recipientGroupID) {
-            const messageText = messageData.messageText;
-            const createDate = messageData.createDate;
-            console.log(messageData);
-
-            let sql = `
-                INSERT INTO MessageInfo (creatorID, messageText, createDate)
-                VALUES (${creatorID}, E'${messageText}', TO_TIMESTAMP('${createDate}', 'DD-MM-YYYY HH24:MI:SS'))
-                RETURNING messageid, TO_CHAR(createDate, 'DD-MM-YYYY HH24:MI:SS') as createdate;
-            `;
-
-            db.query(sql, (err, dbRes) => {
-                if (err) {
-                    console.log('Error inserting new message data');
-                    console.log(err);
-                } else {
-                    let messageID = dbRes.rows[0].messageid;
-                    messageData.messageID = messageID;
-                    messageData.isRead = false;
-                    messageData.createDate = dbRes.rows[0].createdate;
-
-                    // Send back original message to sender to make sure that message is successfully sent
-                    socket.emit('message', messageData);
-
-                    // Send message to specific recipient
-                    if (activeUsers[messageData.recipientID].userSocketID) {
-                        io.to(activeUsers[messageData.recipientID].userSocketID).emit('message', messageData);
-                    }
-
-                    sql = `
-                        INSERT INTO MessageRecipient (messageID, recipientID, hasRead)
-                        VALUES (${messageID}, ${recipientID}, false)
-                    `;
-                    db.query(sql, (err) => {
-                        if (err) {
-                            console.log('Error inserting data into message recipient');
-                            console.log(err);
-                        }
-                    })
-                }
-            });
-        }
-        
-    })
-
-
-    socket.on('seen message', (messageData) => {
-        console.log(messageData);
-        let messageIDs;
-        if (Array.isArray(messageData.messageID)) {
-            messageIDs = messageData.messageID.filter(Boolean).join(',');
-        } else {
-            messageIDs = messageData.messageID.toString();
-        }
-
-        if (messageIDs) {
-            const sql = `
-                UPDATE MessageRecipient
-                SET hasRead = true
-                WHERE messageID IN (${messageIDs})
-                    AND hasRead = false
-            `;
-
-            db.query(sql, (err) => {
-                if (err) {
-                    console.log(socket.id, 'Error updating seen message');
-                }
-            })
-            console.log(messageData);
-
-            if (activeUsers[messageData.senderID]) {
-                io.to(activeUsers[messageData.senderID].userSocketID).emit('seen message', messageData);
-            }
-            
-            if (activeUsers[messageData.recipientID]) {
-                io.to(activeUsers[messageData.recipientID].userSocketID).emit('seen message', messageData);
-            }
-        }
-        console.log(messageData);
-    })
-
-
-    socket.on('chat message', (data) => {
-        console.log('message: ' + data.message + ' | socketID: ' + socket.id);
-        console.log('image-type: ' + data['image-type'] + ' | socketID: ' + socket.id);
-        socket.broadcast.emit('chat message', data);;
-
-        // Save image file to server
-        if (data.image) {
-            (async () => {
-                let imgBuffer = Buffer.from(data.image);
-                let imgType = await FileType.fromBuffer(imgBuffer);
-                if (imgType.ext) {
-                    let dateString = Date.now();
-                    let fileOutputName = `img_${data.username}_${dateString}.${imgType.ext}`;
-
-                    let writeStream = fs.createWriteStream(fileOutputName);
-                    writeStream.write(imgBuffer);
-                    writeStream.end();
-
-                    console.log('Write image successfully!');
-                } else {
-                    console.log('Can\'t write image file!');
-                }
-            })();
-        }
-    })
-
-
-    socket.on('typing', (messageData) => {
-        console.log('userID:' + messageData.senderID + ' typing' + ' | socketID: ' + socket.id);
-
-        const userID = messageData.recipientID;
-        if (activeUsers[userID]) {
-            io.to(activeUsers[userID].userSocketID).emit('typing', messageData);
-        }
-    })
-
-    
-    socket.on('stopped typing', (messageData) => {
-        console.log('userID:' + messageData.senderID + ' stoped typing' + ' | socketID: ' + socket.id);
-
-        const userID = messageData.recipientID;
-        if (activeUsers[userID]) {
-            io.to(activeUsers[userID].userSocketID).emit('stopped typing');
-        }
-    })
-
-
-    socket.on('disconnect', () => {
-        console.log('socket disconnected | socketID: ' + socket.id);
-
-        // Broadcast to other sockets that a socket has disconnected
-        for (let userID in activeUsers) {
-            if (activeUsers[userID].userSocketID == socket.id) {
-                socket.broadcast.emit('user disconnection', { userID, userSocketID: socket.id });
-                delete activeUsers[userID];
-            }
-        }
-        console.log(activeUsers);
-    });
-});
+module.exports = app;
