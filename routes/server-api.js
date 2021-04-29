@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../database/db');
-const dbFunctions = require('../db-functions');
+const dbFunctions = require('../database/db-functions');
 
 
 let router = express.Router();
@@ -285,7 +285,7 @@ router.post('/friend-list/add-friend/:friendID', (req, res) => {
         const sql = 
             `INSERT INTO Friendship VALUES (${userID}, ${friendID}, 'request', ${userID})`;
 
-        db.query(sql, (err, dbRes) => {
+        db.query(sql, (err) => {
             if (err) {
                 log(req, 'Error inserting data into friendship table');
                 console.log(err);
@@ -305,14 +305,15 @@ router.put('/friend-list/accept/:friendID', (req, res) => {
     } else {
         const userID = req.session.user.userID;
         const friendID = req.params.friendID;
-        const sql = 
-            `UPDATE Friendship
+        const sql = `
+            UPDATE Friendship
             SET friendStatus = 'friend'
             WHERE actionUserID = ${friendID}
                 AND ( 
                         (userid1 = ${userID} AND userid2 = ${friendID})
                         OR (userid1 = ${friendID} AND userid2 = ${userID})
-                    )`;
+                    )
+        `;
 
         db.query(sql, (err, dbRes) => {
             if (err) {
@@ -340,7 +341,7 @@ router.delete('/friend-list/unfriend/:friendID', (req, res) => {
             WHERE (userid1 = ${userID} AND userid2 = ${friendID})
                 OR (userid1 = ${friendID} AND userid2 = ${userID})`;
 
-        db.query(sql, (err, dbRes) => {
+        db.query(sql, (err) => {
             if (err) {
                 log(req, 'Error deleting data from friendship table');
                 console.log(err);
@@ -367,7 +368,7 @@ router.delete('/friend-list/decline/:friendID', (req, res) => {
                 OR (userid1 = ${friendID} AND userid2 = ${userID})
                 AND actionUserID = ${friendID}`;
 
-        db.query(sql, (err, dbRes) => {
+        db.query(sql, (err) => {
             if (err) {
                 log(req, 'Error deleting data from friendship table');
                 console.log(err);
