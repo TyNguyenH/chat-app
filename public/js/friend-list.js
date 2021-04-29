@@ -71,8 +71,15 @@ socket.on('message', (messageData) => {
 
     if (senderID) {
         notification.icon = avatarSrc;
+        
+        if (messageData.file && messageData.fileType) {
+            notification.body = 'Đã gửi bạn hình ảnh';
+        } else {
+            notification.body = messageText;
+        }
+
         notification.title = friendFullName.trim();
-        notification.body = messageText;
+        
         notifyNewMessage(senderID, notification);
     }
 });
