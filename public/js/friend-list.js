@@ -1,5 +1,5 @@
 import CONFIG from './config.js';
-import { notifyNewMessage } from './home-functions.js'
+import { notifyNewMessage, syncMessages } from './home-functions.js'
 
 
 let socket = io();
@@ -82,6 +82,63 @@ socket.on('message', (messageData) => {
         
         notifyNewMessage(senderID, notification);
     }
+
+    // Store new message to localStorage
+    navigator.storage.estimate()
+        .then(data => {
+            const newMessage = {
+                messageID: Number.parseInt(messageData.messageID),
+                creatorID: Number.parseInt(messageData.senderID),
+                recipientID: Number.parseInt(messageData.recipientID),
+                recipientGroupID: Number.parseInt(messageData.recipientGroupID),
+                messageText: messageData.messageText,
+                filePath: messageData.file,
+                fileType: messageData.fileType,
+                isRead: messageData.isRead,
+                createDate: messageData.createDate
+            }
+
+            let friendID;
+            if (messageData.senderID != userID) {
+                friendID = messageData.senderID;
+            } else {
+                friendID = messageData.recipientID;
+            }
+
+            if (data.usage < data.quota) {
+                // Add new message to the beginning of the messages array
+                if (localStorage.hasOwnProperty(`friend${friendID}`)) {
+                    let existingMessages = JSON.parse(localStorage.getItem(`friend${friendID}`));
+                    let newMessages = syncMessages([newMessage], existingMessages);
+                    localStorage.setItem(`friend${friendID}`, JSON.stringify(newMessages));
+                }
+
+                // Initialize a new array of messages if messages are not found in localStorage
+                if (!localStorage.hasOwnProperty(`friend${friendID}`)) {
+                    const dateNow = new Date(Date.now());
+                    const now = `${dateNow.getDate()}-${dateNow.getMonth() + 1}-${dateNow.getFullYear()} ${dateNow.getHours()}:${dateNow.getMinutes()}:${dateNow.getSeconds()}`;
+
+                    const searchOption = `searchCreatorID=[${userID},${friendID}]&searchRecipientID=[${userID},${friendID}]&searchDateTo=${now}&searchLimit=20`;
+                    const resultOption = `resultMessageID=true&resultCreatorID=true&resultRecipientID=true&resultMessageText=true&resultFilePath=true&resultFileType=true&resultCreateDate=true&resultIsRead=true`;
+                    const queryString = `${searchOption}&${resultOption}`;
+
+                    fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/messages/option?${queryString}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            /*
+                                Array of messages ordered by descending create date
+                                messages[0]          --> Lastest
+                                messages[length - 1] --> Oldest
+                            */
+
+                            let messages = data.messages;
+
+                            messages = JSON.stringify(messages);
+                            localStorage.setItem(`friend${friendID}`, messages);
+                        })
+                }
+            }
+        })
 });
 
 
