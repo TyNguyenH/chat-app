@@ -79,6 +79,7 @@ module.exports = {
                     SELECT ${columns}
                     FROM UserInfo
                     WHERE userID IN (${friendIDs})
+                        AND isActive IS TRUE
                 `;
                 dbRes = await db.asyncQuery(sql);
                 
@@ -200,7 +201,7 @@ module.exports = {
                 if (friendIDs.length > 0) {
                     friendIDs = friendIDs.join(',');
 
-                    columns = ['userID as friendID', firstNameResult, lastNameResult, avatarResult].filter(Boolean).join(',');
+                    columns = ['userID as friendID', firstNameResult, lastNameResult, avatarResult, 'isActive'].filter(Boolean).join(',');
 
                     sql = `
                         SELECT DISTINCT ${columns}
@@ -211,20 +212,28 @@ module.exports = {
 
                     for (let row of dbRes.rows) {
                         if (tempFriends[row.friendid]) {
-                            if (friendIdResult) {
-                                tempFriends[row.friendid].friendID = row.friendid;
-                            }
+                            // Friend is active
+                            if (row.isactive == true) {
+                                if (friendIdResult) {
+                                    tempFriends[row.friendid].friendID = row.friendid;
+                                }
 
-                            if (firstNameResult) {
-                                tempFriends[row.friendid].friendFirstName = row.firstname;
-                            }
+                                if (firstNameResult) {
+                                    tempFriends[row.friendid].friendFirstName = row.firstname;
+                                }
 
-                            if (lastNameResult) {
-                                tempFriends[row.friendid].friendLastName = row.lastname;
-                            }
+                                if (lastNameResult) {
+                                    tempFriends[row.friendid].friendLastName = row.lastname;
+                                }
 
-                            if (avatarResult) {
-                                tempFriends[row.friendid].friendAvatarSrc = row.avatar;
+                                if (avatarResult) {
+                                    tempFriends[row.friendid].friendAvatarSrc = row.avatar;
+                                }
+                            } 
+                            
+                            // Friend is not active
+                            else {
+                                delete tempFriends[row.friendid];
                             }
                         }
                     }
@@ -302,8 +311,9 @@ module.exports = {
                         lastNameCondition = `(lastName ILIKE '%${searchOption.lastName}%' OR lastNameEng ILIKE '%${searchOption.lastName}%')`;
                     }
 
-                    columns = ['userID as friendID', firstNameResult, lastNameResult, avatarResult].filter(Boolean).join(',');
                     let fullNameCondition = [firstNameCondition, lastNameCondition].filter(Boolean).join(' OR ');
+
+                    columns = ['userID as friendID', firstNameResult, lastNameResult, avatarResult, 'isActive'].filter(Boolean).join(',');
                     
                     sql = `
                         SELECT DISTINCT ${columns}
@@ -315,20 +325,28 @@ module.exports = {
 
                     for (let row of dbRes.rows) {
                         if (tempFriends[row.friendid]) {
-                            if (friendIdResult) {
-                                tempFriends[row.friendid].friendID = row.friendid;
-                            }
+                            // Friend is active
+                            if (row.isactive == true) {
+                                if (friendIdResult) {
+                                    tempFriends[row.friendid].friendID = row.friendid;
+                                }
 
-                            if (firstNameResult) {
-                                tempFriends[row.friendid].friendFirstName = row.firstname;
-                            }
+                                if (firstNameResult) {
+                                    tempFriends[row.friendid].friendFirstName = row.firstname;
+                                }
 
-                            if (lastNameResult) {
-                                tempFriends[row.friendid].friendLastName = row.lastname;
-                            }
+                                if (lastNameResult) {
+                                    tempFriends[row.friendid].friendLastName = row.lastname;
+                                }
 
-                            if (avatarResult) {
-                                tempFriends[row.friendid].friendAvatarSrc = row.avatar;
+                                if (avatarResult) {
+                                    tempFriends[row.friendid].friendAvatarSrc = row.avatar;
+                                }
+                            } 
+
+                            // Friend is not active
+                            else {
+                                delete tempFriends[row.friendid];
                             }
                         }
                     }
@@ -363,16 +381,19 @@ module.exports = {
                     lastNameCondition = `(lastName ILIKE '%${searchOption.lastName}%' OR lastNameEng ILIKE '%${searchOption.lastName}%')`;
                 }
 
+                let fullNameCondition = [firstNameCondition, lastNameCondition].filter(Boolean).join(' OR ');
+
                 let tempFriends = {};
                 let friendIDs = [];
 
                 let columns = ['userID as friendID', firstNameResult, lastNameResult, avatarResult].filter(Boolean).join(',');
-                let fullNameCondition = [firstNameCondition, lastNameCondition].filter(Boolean).join(' OR ');
+                
                 sql = `
                     SELECT DISTINCT ${columns}
                     FROM UserInfo
-                    WHERE ${fullNameCondition}
+                    WHERE (${fullNameCondition})
                         AND userID != ${userID}
+                        AND isActive IS TRUE
                 `;
                 dbRes = await db.asyncQuery(sql);
 
@@ -515,7 +536,7 @@ module.exports = {
             if (friendIDs.length > 0) {
                 friendIDs = friendIDs.join(',');
 
-                columns = ['userID as friendID', firstNameResult, lastNameResult, avatarResult].filter(Boolean).join(',');
+                columns = ['userID as friendID', firstNameResult, lastNameResult, avatarResult, 'isActive'].filter(Boolean).join(',');
                 sql = `
                     SELECT DISTINCT ${columns}
                     FROM UserInfo
@@ -525,20 +546,28 @@ module.exports = {
 
                 for (let row of dbRes.rows) {
                     if (tempFriends[row.friendid]) {
-                        if (friendIdResult) {
-                            tempFriends[row.friendid].friendID = row.friendid;
-                        }
+                        // Friend is active
+                        if (row.isactive == true) {
+                            if (friendIdResult) {
+                                tempFriends[row.friendid].friendID = row.friendid;
+                            }
 
-                        if (firstNameResult) {
-                            tempFriends[row.friendid].friendFirstName = row.firstname;
-                        }
+                            if (firstNameResult) {
+                                tempFriends[row.friendid].friendFirstName = row.firstname;
+                            }
 
-                        if (lastNameResult) {
-                            tempFriends[row.friendid].friendLastName = row.lastname;
-                        }
+                            if (lastNameResult) {
+                                tempFriends[row.friendid].friendLastName = row.lastname;
+                            }
 
-                        if (avatarResult) {
-                            tempFriends[row.friendid].friendAvatarSrc = row.avatar;
+                            if (avatarResult) {
+                                tempFriends[row.friendid].friendAvatarSrc = row.avatar;
+                            }
+                        }
+                        
+                        // Friend is not active
+                        else {
+                            delete tempFriends[row.friendid];
                         }
                     }
                 }
