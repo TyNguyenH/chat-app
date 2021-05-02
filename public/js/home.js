@@ -61,7 +61,7 @@ let messageTextInput = document.querySelector('#message-text-input');
 
 // Element that holds and shows all messages between users
 let chatMsgBox = document.querySelector('#messages-box');
-chatMsgBox.style['scroll-behavior'] = 'smooth';
+chatMsgBox.style['scroll-behavior'] = 'auto';
 
 // Creating typing feedback element
 let typingFeedback = document.createElement('div');
@@ -90,9 +90,6 @@ let filesPreview = document.querySelector('#files-preview');
 
 
 window.onload = async () => {
-    // Clear localStorage when loading or refreshing home page
-    localStorage.clear();
-
     await renderFriendsNavTab();
 
     // Request access notification
@@ -216,10 +213,11 @@ window.onload = async () => {
                 }
             }
 
-            // Automatically scroll down to bottom
-            setTimeout(() => {
-                chatMsgBox.scrollTop = chatMsgBox.scrollHeight;
-            }, 50);
+            // Avoid too much scrolling effect causing dizziness
+            chatMsgBox.style['scroll-behavior'] = null;
+
+            // Automatically scroll down to last child view (bottom of messages box)
+            chatMsgBox.children[chatMsgBox.childElementCount - 1].scrollIntoView();
         }
     }
 
@@ -600,9 +598,8 @@ socket.on('message', (messageData) => {
         }
 
         // Automatically move to the bottom of chat box
-        setTimeout(() => {
-            chatMsgBox.scrollTop = chatMsgBox.scrollHeight;
-        }, 100);
+        chatMsgBox.style['scroll-behavior'] = 'smooth';
+        chatMsgBox.children[chatMsgBox.childElementCount - 1].scrollIntoView();
     } 
     
     // Show new message at friends navigation tab (with blue notification dot)
@@ -780,16 +777,14 @@ socket.on('typing', (messageData) => {
     const friendID = recipientNameBar.getAttribute('data-friend-id');
     
     if (!document.querySelector('#typing-feedback') && messageData.senderID == friendID) {
-        setTimeout(() => {
-            chatMsgBox.scrollTop = chatMsgBox.scrollHeight;
-        }, 100);
-
         const avatarSrc = friendsNavTab[friendID].querySelector('div > img').getAttribute('src');
         let avatar = typingFeedback.querySelector('img');
         avatar.setAttribute('src', avatarSrc);
         avatar.setAttribute('class', 'self-start mr-2 w-7 h-7 shadow-md rounded-full'); 
 
+        chatMsgBox.style['scroll-behavior'] = 'smooth';
         chatMsgBox.appendChild(typingFeedback);
+        document.querySelector('#typing-feedback').scrollIntoView();
     }
 });
 
