@@ -31,8 +31,8 @@ app.use(session({
     resave: true,
     saveUninitialized: false,
     cookie: {
-        // require an https-enabled website for a secure cookie
-        // secure: true
+        // Require an https-enabled website for a secure cookie
+        secure: true
     }
 }));
 
@@ -132,9 +132,9 @@ app.get('/friend-list', (req, res) => {
         // Get user info
         db.query(`SELECT userid, firstname, lastname, avatar
                 FROM UserInfo
-                WHERE userid = ${req.session.user.userID}` ,
+                WHERE userid = ${req.session.user.userID}`,
 
-            async (err, dbRes) => {
+            (err, dbRes) => {
                 if (err) {
                     log(req, 'Error getting user info:');
                     console.log(err);
@@ -154,7 +154,42 @@ app.get('/friend-list', (req, res) => {
 });
 
 
-/* 
+// Show full personal info of currently logged in user
+app.get('/personal-info', (req, res) => {
+    if (!req.session.user) {
+        res.redirect('/login');
+    } else {
+        const userID = Number.parseInt(req.session.user.userID);
+        if (userID) {
+            // Get user info
+            db.query(`SELECT userid, firstname, lastname, avatar
+                FROM UserInfo
+                WHERE userid = ${req.session.user.userID}`,
+
+                (err, dbRes) => {
+                    if (err) {
+                        log(req, 'Error getting user info:');
+                        console.log(err);
+                    } else {
+                        const userID = dbRes.rows[0].userid;
+                        const firstName = dbRes.rows[0].firstname;
+                        const lastName = dbRes.rows[0].lastname;
+                        const avatarSrc = dbRes.rows[0].avatar;
+
+                        const data = { userID, firstName, lastName, avatarSrc };
+
+                        res.render('personal-info.ejs', data);
+                    }
+                }
+            );
+        } else {
+            res.redirect('/home');
+        }
+    }
+});
+
+
+/*
     Store temporary users' registering data (use email as a property to access tempRegister)
 
     tempRegister = {
@@ -169,7 +204,7 @@ app.get('/friend-list', (req, res) => {
         },
         ...
     }
-*/ 
+*/
 let tempRegister = {}
 
 
@@ -185,7 +220,7 @@ const storage = multer.diskStorage({
 
             tempRegister[req.body.email] = {};
             tempRegister[req.body.email].avatarFilePath = '/avatars/' + avatarFileName;
-        }   
+        }
     }
 });
 
@@ -230,7 +265,7 @@ app.post('/register', (req, res) => {
                 tempRegister[email].secretCode = secretCode;
                 tempRegister[email].beginTime = Date.now();
                 tempRegister[email].expire = 43200000;
-                
+
                 // Config mail server
                 let transporter = nodemailer.createTransport({
                     service: 'Gmail',
@@ -250,7 +285,7 @@ app.post('/register', (req, res) => {
                             <a style="padding: 7px 8px; border: none; border-radius: 5px; background-color: #4287f5; color: white; text-decoration: none; font-weight: bold; font-size: 22px; cursor: pointer;" href="${process.env.HOST_ADDRESS}:${process.env.HOST_PORT_SECURE}/register/auth/${email}/${tempRegister[email].secretCode = secretCode}" target="_blank">Xác thực</a>
                         </div>`
                 }
-                
+
                 // Proceed sending email
                 transporter.sendMail(mailOptions, (err, info) => {
                     if (err) {
@@ -273,7 +308,7 @@ app.post('/register', (req, res) => {
 });
 
 
-// Authenticate user email
+// Authenticate user email, if it's correct then proceed to creating new account
 app.get('/register/auth/:email/:secretCode', (req, res) => {
     const emailPattern = /^\b[\w\.-]+@[\w\.-]+\.\w{1,}\b$/g;
     const email = req.params.email;
@@ -282,7 +317,7 @@ app.get('/register/auth/:email/:secretCode', (req, res) => {
     if (tempRegister[email] && email.match(emailPattern)
         && secretCode == tempRegister[email].secretCode
         && Date.now() - tempRegister[email].beginTime <= tempRegister[email].expire) {
-        
+
         let hashedPass = tempRegister[email].hashedPass;
         let firstName = tempRegister[email].firstName;
         let lastName = tempRegister[email].lastName;
@@ -319,21 +354,21 @@ app.get('/register/auth/:email/:secretCode', (req, res) => {
                 });
             }
         });
-    } 
-    
+    }
+
     else {
         // Delete user data if email authentication failed
         if (tempRegister[email]) {
             fs.unlinkSync(path.join(__dirname, 'public', tempRegister[email].avatarFilePath));
             delete tempRegister[email];
         }
-        
+
         res.sendFile('./public/unsuccessful-reg.html', { root: __dirname });
     }
 });
 
 
-/* 
+/*
     Store temporary login info
     If user failed logging in every 5 times, server will force user to wait 5^n (minutes), n > 1
 
@@ -377,7 +412,6 @@ app.post('/login', (req, res) => {
         FROM UserAccount a, UserInfo b
         WHERE a.userId = b.userId
             AND a.email = '${email}'
-            AND b.isActive = true
         `;
 
         db.query(sql, (err, dbRes) => {
