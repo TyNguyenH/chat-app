@@ -21,7 +21,7 @@ async function renderFriendsNavTab() {
         '<div class="py-1 h-10 border-b-2 border-black bg-gray-200 rounded-tr-lg text-lg text-center font-bold">Bạn chat</div>';
 
     const searchOption = `searchFriendStatus=friend`;
-    const resultOption = `resultFriendID=true&resultFirstName=true&resultLastName=true&resultAvatar=true&resultFriendStatus=true&resultActionUserID=true`;
+    const resultOption = `resultFriendID=true&resultFirstName=true&resultLastName=true&resultAvatar=true&resultFriendStatus=true`;
     const queryString = `${searchOption}&${resultOption}`;
     
     const data =
@@ -144,20 +144,23 @@ function renderAllMessageSnippets() {
 
     let friendsNavTab = document.querySelector('#friends-nav-tab').children;
     for (let friendTab of friendsNavTab) {
-        const friendID = friendTab.getAttribute('data-friend-id');
-        const searchOption = `searchCreatorID=[${userID},${friendID}]&searchRecipientID=[${userID},${friendID}]&searchDateTo=${now}&searchLimit=1`;
-        const resultOption = `resultMessageID=true&resultCreatorID=true&resultRecipientID=true&resultMessageText=true&resultFilePath=true&resultFileType=true&resultIsRead=true`;
-        const queryString = `${searchOption}&${resultOption}`;
+        if (friendTab.getAttribute('data-friend-id')) {
+            const friendID = friendTab.getAttribute('data-friend-id');
+            const searchOption = `searchCreatorID=[${userID},${friendID}]&searchRecipientID=[${userID},${friendID}]&searchDateTo=${now}&searchLimit=1`;
+            const resultOption = `resultMessageID=true&resultCreatorID=true&resultRecipientID=true&resultMessageText=true&resultFilePath=true&resultFileType=true&resultIsRead=true`;
+            const queryString = `${searchOption}&${resultOption}`;
 
-        fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/messages/option?${queryString}`)
-            .then(response => response.json())
-            .then(data => {
-                // Returned data will be an array containing one object (message data)
-                if (data.messages[0]) {
-                    const message = data.messages[0];
-                    renderMessageSnippet(friendTab, message);
-                }
-            });
+            fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/messages/option?${queryString}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Returned data will be an array containing one object (message data)
+                    if (data.messages[0]) {
+                        const message = data.messages[0];
+                        console.log(message);
+                        renderMessageSnippet(friendTab, message);
+                    }
+                });
+        }
     }
 }
 
