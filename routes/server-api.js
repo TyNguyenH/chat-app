@@ -32,19 +32,60 @@ router.get('/register/email', (req, res) => {
                     status: ''
                 };
 
-                if (dbRes.rows == 0) {
+                if (dbRes.rows.length == 0) {
                     data.status = 'OK';
-                    res.send(data);
-                } else {
-                    data.status = 'existed';
-                    res.send(data);
                 }
+                
+                if (dbRes.rows.length == 1) {
+                    data.status = 'existed';
+                }
+
+                res.send(data);
             }
         });
     } else {
         res.send({ msg: 'email not valid' });
     }
 });
+
+
+// Get currently logged in user full info
+router.get('/personal-info', (req, res) => {
+    if (!req.session.user) {
+        res.send({});
+    } else {
+        const userID = Number.parseInt(req.session.user.userID);
+        if (userID) {
+            const sql = `
+                SELECT a.email, b.firstName, b.lastName, b.avatar, TO_CHAR(b.createDate, 'DD-MM-YYYY') as createDate, isActive
+                FROM UserAccount a, UserInfo b
+                WHERE a.userID = b.userID
+                    AND b.userID = ${userID}
+            `;
+
+            db.query(sql, (err, dbRes) => {
+                if (err) {
+                    console.log('Error getting full user info');
+                    console.log(err);
+                } else {
+                    if (dbRes.rows.length == 1) {
+                        const userFullInfo =  {
+                            avatarSrc: dbRes.rows[0].avatar,
+                            firstName: dbRes.rows[0].firstname,
+                            lastName: dbRes.rows[0].lastname,
+                            email: dbRes.rows[0].email,
+                            dateJoined: dbRes.rows[0].createdate,
+                            isActive: dbRes.rows[0].isactive
+                        }; 
+                        res.send(userFullInfo);
+                    }
+                }
+            });
+        } else {
+            res.send({});
+        }
+    }
+})
 
 
 // Search friend(s) info
@@ -277,106 +318,156 @@ router.get('/messages/option', async (req, res) => {
 
 // Friend request
 router.post('/friend-list/add-friend/:friendID', (req, res) => {
-    if (!req.session.user) {
-        res.redirect('/login');
-    } else {
-        const userID = req.session.user.userID;
-        const friendID = req.params.friendID;
-        const sql = 
-            `INSERT INTO Friendship VALUES (${userID}, ${friendID}, 'request', ${userID})`;
+    if (req.session.user) {
+        const userID = Number.parseInt(req.session.user.userID);
+        const friendID = Number.parseInt(req.params.friendID);
 
-        db.query(sql, (err) => {
-            if (err) {
-                log(req, 'Error inserting data into friendship table');
-                console.log(err);
-                res.send({ msg: 'error' });
-            } else {
-                res.send({ msg: 'success' });
-            }
-        })
+        if (userID && friendID) {
+            const sql = `INSERT INTO Friendship VALUES (${userID}, ${friendID}, 'request', ${userID})`;
+            db.query(sql, (err) => {
+                if (err) {
+                    log(req, 'Error inserting data into friendship table');
+                    console.log(err);
+                    res.send({ msg: 'error' });
+                } else {
+                    res.send({ msg: 'success' });
+                }
+            });
+        }
     }
 });
 
 
 // Accept friend request
 router.put('/friend-list/accept/:friendID', (req, res) => {
-    if (!req.session.user) {
-        res.redirect('/login');
-    } else {
-        const userID = req.session.user.userID;
-        const friendID = req.params.friendID;
-        const sql = `
-            UPDATE Friendship
-            SET friendStatus = 'friend'
-            WHERE actionUserID = ${friendID}
-                AND ( 
-                        (userid1 = ${userID} AND userid2 = ${friendID})
-                        OR (userid1 = ${friendID} AND userid2 = ${userID})
-                    )
-        `;
+    if (req.session.user) {
+        const userID = Number.parseInt(req.session.user.userID);
+        const friendID = Number.parseInt(req.params.friendID);
 
-        db.query(sql, (err, dbRes) => {
-            if (err) {
-                log(req, 'Error updating data from friendship table');
-                console.log(err);
-                res.send({ msg: 'error' });
-            } else {
-                res.send({ msg: 'success' });
-            }
-        })
+        if (userID && friendID) {
+            const sql = `
+                UPDATE Friendship
+                SET friendStatus = 'friend'
+                WHERE actionUserID = ${friendID}
+                    AND ( 
+                            (userid1 = ${userID} AND userid2 = ${friendID})
+                            OR (userid1 = ${friendID} AND userid2 = ${userID})
+                        )
+            `;
+
+            db.query(sql, (err) => {
+                if (err) {
+                    log(req, 'Error updating data from friendship table');
+                    console.log(err);
+                    res.send({ msg: 'error' });
+                } else {
+                    res.send({ msg: 'success' });
+                }
+            });
+        }
+    }
+})
+
+
+// Deactivate user account
+router.put('/deactivate-user', (req, res) => {
+    if (req.session.user) {
+        const userID = Number.parseInt(req.session.user.userID);
+        if (userID) {
+            const sql = `
+                UPDATE UserInfo
+                SET isActive = FALSE
+                WHERE userID = ${userID}
+            `;
+            db.query(sql, (err) => {
+                if (err) {
+                    log(req, 'Error setting isActive to FALSE in UserInfo table');
+                    console.log(err);
+                    res.send({ msg: 'error' });
+                } else {
+                    res.send({ msg: 'success' });
+                }
+            })
+        }
+    }
+})
+
+
+// Deactivate user account
+router.put('/activate-user', (req, res) => {
+    if (req.session.user) {
+        const userID = Number.parseInt(req.session.user.userID);
+        if (userID) {
+            const sql = `
+                UPDATE UserInfo
+                SET isActive = TRUE
+                WHERE userID = ${userID}
+            `;
+            db.query(sql, (err) => {
+                if (err) {
+                    log(req, 'Error setting isActive to TRUE in UserInfo table');
+                    console.log(err);
+                    res.send({ msg: 'error' });
+                } else {
+                    res.send({ msg: 'success'});
+                }
+            })
+        }
     }
 })
 
 
 // Unfriend
 router.delete('/friend-list/unfriend/:friendID', (req, res) => {
-    if (!req.session.user) {
-        res.redirect('/login');
-    } else {
-        const userID = req.session.user.userID;
-        const friendID = req.params.friendID;
-        const sql = 
-            `DELETE 
-            FROM Friendship 
-            WHERE (userid1 = ${userID} AND userid2 = ${friendID})
-                OR (userid1 = ${friendID} AND userid2 = ${userID})`;
+    if (req.session.user) {
+        const userID = Number.parseInt(req.session.user.userID);
+        const friendID = Number.parseInt(req.params.friendID);
 
-        db.query(sql, (err) => {
-            if (err) {
-                log(req, 'Error deleting data from friendship table');
-                console.log(err);
-                res.send({ msg: 'error' });
-            } else {
-                res.send({ msg: 'success' });
-            }
-        })
+        if (userID && friendID) {
+            const sql = `
+                DELETE FROM Friendship 
+                WHERE (userid1 = ${userID} AND userid2 = ${friendID})
+                    OR (userid1 = ${friendID} AND userid2 = ${userID})
+            `;
+
+            db.query(sql, (err) => {
+                if (err) {
+                    log(req, 'Error deleting data from friendship table');
+                    console.log(err);
+                    res.send({ msg: 'error' });
+                } else {
+                    res.send({ msg: 'success' });
+                }
+            });
+        }
     }
 });
 
 
 // Decline friend request
 router.delete('/friend-list/decline/:friendID', (req, res) => {
-    if (!req.session.user) {
-        res.redirect('/login');
-    } else {
-        const userID = req.session.user.userID;
-        const friendID = req.params.friendID;
-        const sql =
-            `DELETE 
-            FROM Friendship 
-            WHERE (userid1 = ${userID} AND userid2 = ${friendID})
-                OR (userid1 = ${friendID} AND userid2 = ${userID})
-                AND actionUserID = ${friendID}`;
+    if (req.session.user) {
+        const userID = Number.parseInt(req.session.user.userID);
+        const friendID = Number.parseInt(req.params.friendID);
 
-        db.query(sql, (err) => {
-            if (err) {
-                log(req, 'Error deleting data from friendship table');
-                console.log(err);
-                res.send({ msg: 'error' });
-            } else {
-                res.send({ msg: 'success' });
-            }
-        })
+        if (userID && friendID) {
+            const sql = `
+                DELETE FROM Friendship 
+                WHERE (userid1 = ${userID} AND userid2 = ${friendID})
+                    OR (userid1 = ${friendID} AND userid2 = ${userID})
+                    AND actionUserID = ${friendID}
+            `;
+
+            db.query(sql, (err) => {
+                if (err) {
+                    log(req, 'Error deleting data from friendship table');
+                    console.log(err);
+                    res.send({ msg: 'error' });
+                } else {
+                    res.send({ msg: 'success' });
+                }
+            });
+        }
     }
 });
 
