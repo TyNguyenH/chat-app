@@ -282,9 +282,6 @@ COPY public.fileinfo (fileid, filepath, filetype) FROM stdin;
 4	/imgs/user-imgs/img_252_1619450018680.jpg	jpg
 5	/imgs/user-imgs/img_253_1619450164334.jpg	jpg
 6	/imgs/user-imgs/img_254_1619450275242.jpg	jpg
-7	/imgs/user-imgs/img_255_1619450387632.jpg	jpg
-8	/imgs/user-imgs/img_256_1619450387636.jpg	jpg
-9	/imgs/user-imgs/img_257_1619450387641.jpg	jpg
 10	/imgs/user-imgs/img_258_1619450533167.jpg	jpg
 17	/imgs/user-imgs/img_268_1619491850006.jpg	jpg
 18	/imgs/user-imgs/img_270_1619492957245.jpg	jpg
@@ -315,7 +312,6 @@ COPY public.fileinfo (fileid, filepath, filetype) FROM stdin;
 
 COPY public.friendship (userid1, userid2, friendstatus, actionuserid) FROM stdin;
 45	34	request	45
-45	28	friend	45
 45	33	friend	45
 32	45	friend	32
 27	45	request	27
@@ -323,6 +319,7 @@ COPY public.friendship (userid1, userid2, friendstatus, actionuserid) FROM stdin
 32	27	friend	32
 28	31	friend	28
 28	30	friend	28
+28	45	friend	28
 27	30	friend	27
 30	31	friend	30
 31	27	friend	31
@@ -512,9 +509,6 @@ COPY public.messageinfo (messageid, creatorid, messagetext, fileid, createdate) 
 252	45	\N	4	2021-04-26 22:13:38+07
 253	28	\N	5	2021-04-26 22:16:04+07
 254	45	\N	6	2021-04-26 22:17:55+07
-255	45	\N	7	2021-04-26 22:19:47+07
-256	45	\N	8	2021-04-26 22:19:47+07
-257	45	\N	9	2021-04-26 22:19:47+07
 258	28	\N	10	2021-04-26 22:22:13+07
 313	27	alo, yeah yeah	\N	2021-04-28 16:44:34+07
 314	27	yeah yeah, alo	\N	2021-04-28 16:53:29+07
@@ -538,6 +532,8 @@ COPY public.messageinfo (messageid, creatorid, messagetext, fileid, createdate) 
 309	31	\N	55	2021-04-27 17:17:09+07
 310	31	\N	56	2021-04-27 17:17:09+07
 311	31	\N	57	2021-04-27 17:17:09+07
+341	28	hi there	\N	2021-04-30 11:23:56+07
+342	28	yeeeaaahh	\N	2021-05-01 09:37:07+07
 \.
 
 
@@ -705,9 +701,6 @@ COPY public.messagerecipient (messageid, recipientid, recipientgroupid, hasread)
 252	28	\N	t
 253	45	\N	t
 254	28	\N	t
-255	45	\N	t
-256	45	\N	t
-257	45	\N	t
 258	45	\N	t
 268	28	\N	t
 269	45	\N	t
@@ -731,6 +724,8 @@ COPY public.messagerecipient (messageid, recipientid, recipientgroupid, hasread)
 293	28	\N	t
 325	27	\N	t
 327	28	\N	t
+341	27	\N	t
+342	45	\N	t
 \.
 
 
@@ -765,7 +760,6 @@ COPY public.usergroup (userid, groupid, joindate, inviterid) FROM stdin;
 
 COPY public.userinfo (userid, firstname, lastname, avatar, createdate, isactive, firstnameeng, lastnameeng) FROM stdin;
 27	Tỷ	Nguyễn	/avatars/avatar_1613879928528.jpg	2021-02-21	t	Ty	Nguyen
-28	Lú	Bọt	/avatars/avatar_1613880807073.jpg	2021-02-21	t	Lu	Bot
 30	jimmi	ngủyên	/avatars/avatar_1614163561199.png	2021-02-24	t	jimmi	nguyen
 31	Trí	Trần	/avatars/avatar_1614853312661.jpg	2021-03-04	t	Tri	Tran
 33	Cua	Ngang	/avatars/avatar_1616408439257.jpg	2021-03-22	t	Cua	Ngang
@@ -773,6 +767,7 @@ COPY public.userinfo (userid, firstname, lastname, avatar, createdate, isactive,
 32	Gian	Khoai	/avatars/avatar_1616060535623.png	2021-03-18	t	Gian	Khoai
 44	Tử Minh	Khưu	/avatars/avatar_1618137650214.jpg	2021-04-11	t	Tu Minh	Khuu
 45	Tỷ Đô	Joe	/avatars/avatar_1618137649981.jpg	2021-04-11	t	Ty Do	Joe
+28	Lú	Bọt	/avatars/avatar_1613880807073.jpg	2021-02-21	t	Lu	Bot
 \.
 
 
@@ -780,7 +775,7 @@ COPY public.userinfo (userid, firstname, lastname, avatar, createdate, isactive,
 -- Name: fileinfo_fileid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.fileinfo_fileid_seq', 67, true);
+SELECT pg_catalog.setval('public.fileinfo_fileid_seq', 80, true);
 
 
 --
@@ -794,7 +789,7 @@ SELECT pg_catalog.setval('public.groupinfo_groupid_seq', 1, false);
 -- Name: messageinfo_messageid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.messageinfo_messageid_seq', 327, true);
+SELECT pg_catalog.setval('public.messageinfo_messageid_seq', 342, true);
 
 
 --
