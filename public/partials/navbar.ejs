@@ -2,7 +2,9 @@
     class="container flex flex-row justify-between items-center mt-2 py-2 mx-auto w-10/12 text-right text-lg font-semibold
     align-center">
 
-    <div class="flex justify-evenly items-center cursor-pointer ml-4 p-2 border border-gray-300 shadow-lg rounded-lg bg-gray-200">
+    <div id="user-info-wrapper" 
+        class="flex justify-evenly items-center cursor-pointer ml-4 p-2 border border-gray-300 shadow-lg rounded-lg bg-gray-200"
+        onclick="location.href = '/personal-info';">
         <img id="user-avatar" src=<%= avatarSrc %> alt="avatar"
             class="flex-shrink-0 shadow-md rounded-full h-9 w-9 mr-2">
         <span id="user-info" class="font-bold text-xl" data-user-id=<%= userID %>>
