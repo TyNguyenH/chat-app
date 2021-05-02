@@ -26,7 +26,7 @@ const httpsServer = https.createServer({
 }, app).listen(process.env.HOST_PORT_SECURE);
 
 
-/* 
+/*
     activeUsers = {
         userID: {
             userSocketID:   {string}
@@ -38,7 +38,7 @@ const httpsServer = https.createServer({
 */
 let activeUsers = {};
 
-/* 
+/*
     tempMessages = {
         messageID: {
             creatorID:      {number}
@@ -59,15 +59,32 @@ io.on('connection', (socket) => {
     // Get user info when socket is connected
     socket.emit('connected');
     socket.on('user info', (userData) => {
-        activeUsers[userData.userID] = {};
-        activeUsers[userData.userID].userSocketID = userData.userSocketID;
-        activeUsers[userData.userID].userFullName = userData.userFullName;
-        activeUsers[userData.userID].userAvatarSrc = userData.userAvatarSrc;
+        // Check if user active status in database is true or not, then decide whether or not to add userData into activeUsers
+        const userID = Number.parseInt(userData.userID);
+        if (userID) {
+            const sql = `SELECT userID, isActive FROM UserInfo WHERE userID = ${userID}`;
+            db.query(sql, (err, dbRes) => {
+                if (err) {
+                    console.log('Error selecting userID, isActive FROM UserInfo');
+                    console.log(err);
+                } else {
+                    if (dbRes.rows.length == 1) {
+                        const isActive = dbRes.rows[0].isactive;
+                        if (isActive == true) {
+                            activeUsers[userData.userID] = {};
+                            activeUsers[userData.userID].userSocketID = userData.userSocketID;
+                            activeUsers[userData.userID].userFullName = userData.userFullName;
+                            activeUsers[userData.userID].userAvatarSrc = userData.userAvatarSrc;
 
-        console.log(activeUsers);
+                            console.log('active users:', activeUsers);
 
-        // Emit back active users data to newly connected socket
-        io.sockets.emit('active users', activeUsers);
+                            // Emit back active users data to newly connected socket
+                            io.sockets.emit('active users', activeUsers);
+                        }
+                    }
+                }
+            });
+        }
     });
 
     // Handle messageText and messageFile (file < 500KB)
@@ -211,7 +228,7 @@ io.on('connection', (socket) => {
             const messageText = messageData.messageText;
             if (messageText) {
                 sql = `
-                    UPDATE MessageInfo 
+                    UPDATE MessageInfo
                     SET messageText = E'${messageText}'
                     WHERE messageID = ${messageID}
                 `;
@@ -477,6 +494,6 @@ io.on('connection', (socket) => {
             }
         }
 
-        console.log(activeUsers);
+        console.log('active users:', activeUsers);
     });
 });
