@@ -257,14 +257,6 @@ let fileMessageList = new FileMessageList();
 
 
 
-let fileMessageQuitButton = document.querySelector('#quit-btn');
-fileMessageQuitButton.onclick = () => {
-    if (!fileMessageViewerWrapper.classList.contains('hidden')) {
-        fileMessageViewerWrapper.classList.add('hidden');
-    }
-}
-
-
 
 
 let fileMessageViewerWrapper = document.querySelector('#file-message-viewer-wrapper');
@@ -335,10 +327,14 @@ fileMessageViewerWrapper.onkeydown = (event) => {
         fileMessageList.moveNextFile();
     }
 
+    if (event.key === 'Escape') {
+        if (!fileMessageViewerWrapper.classList.contains('hidden')) {
+            fileMessageViewerWrapper.classList.add('hidden');
+        }
+    }
+
     fileMessageList.renderFileMessageList();
 }
-
-
 
 
 let nextButton = document.querySelector('#next-btn');
@@ -348,8 +344,6 @@ nextButton.onclick = () => {
 }
 
 
-
-
 let backButton = document.querySelector('#back-btn');
 backButton.onclick = () => {
     fileMessageList.moveBackFile();
@@ -357,6 +351,12 @@ backButton.onclick = () => {
 }
 
 
+let fileMessageQuitButton = document.querySelector('#quit-btn');
+fileMessageQuitButton.onclick = () => {
+    if (!fileMessageViewerWrapper.classList.contains('hidden')) {
+        fileMessageViewerWrapper.classList.add('hidden');
+    }
+}
 
 
 // Enable horizontal scrolling
