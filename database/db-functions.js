@@ -24,7 +24,7 @@ module.exports = {
 
         @return {Array} friends - an array of friends, each friend is an object
     */
-    getFriendsInfo: async function(userID, searchOption, resultOption) {
+    getFriendsInfo: async function (userID, searchOption, resultOption) {
         let invalidPattern =
             /[^a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựýỳỵỷỹ\s]/g;
         let dbRes = null;
@@ -615,7 +615,7 @@ module.exports = {
 
         @return {Array} messages - an array of messages, each message is an object
     */
-    getMessages: async function(searchOption, resultOption) {
+    getMessages: async function (searchOption, resultOption) {
         if (!searchOption || !resultOption || Object.keys(searchOption).length == 0 || Object.keys(resultOption).length == 0) {
             return [];
         }
@@ -635,7 +635,7 @@ module.exports = {
             let limitCondition = '';
             {
                 if (searchOption.creatorID) {
-                    if (typeof searchOption.creatorID == 'object' && searchOption.creatorID.length > 0) {
+                    if (Array.isArray(searchOption.creatorID) && searchOption.creatorID.length > 0) {
                         const creatorIDs = searchOption.creatorID.filter(Boolean).join(',');
                         creatorIdCondition = `creatorID IN (${creatorIDs})`;
                     } else if (typeof searchOption.creatorID == 'number') {
@@ -644,7 +644,7 @@ module.exports = {
                 }
 
                 if (searchOption.recipientID) {
-                    if (typeof searchOption.recipientID == 'object' && searchOption.recipientID.length > 0) {
+                    if (Array.isArray(searchOption.recipientID) && searchOption.recipientID.length > 0) {
                         const recipientIDs = searchOption.recipientID.filter(Boolean).join(',');
                         recipientIdCondition = `recipientID IN (${recipientIDs})`;
                     } else if (typeof searchOption.creatorID == 'number') {
@@ -867,6 +867,224 @@ module.exports = {
             messages = messages.reverse();
 
             return messages;
+        }
+    },
+
+
+    /*  Get file messages (images, ...)
+        @param {Object} searchOption - {
+            fileID:             {number}
+            creatorID:          {Array | number}
+            recipientID:        {Array | number}
+            recipientGroupID:   {number}
+            dateFrom:           {string}
+            dateTo:             {string}
+            offset:             {number}
+            limit:              {number}
+        }
+
+        @return {array} [
+            {
+                fileID:         {number}
+                filePath:       {string}
+                fileType:       {string}
+            },
+            ...
+        ]
+    */
+    getFileMessages: async function(searchOption) {
+        if (!searchOption || Object.keys(searchOption).length == 0) {
+            return [];
+        }
+
+        if (searchOption && Object.keys(searchOption).length > 0) {
+            let dbRes = null;
+            let sql = null;
+
+            /* Clean up and create search conditions */
+            let fileIdCondtion = null;
+            let creatorIdCondition = null;
+            let recipientIdCondition = null;
+            let recipientGroupIdCondition = null;
+            let dateFromCondition = null;
+            let dateToCondition = null;
+            let offsetCondition = '';
+            let limitCondition = '';
+            {
+                if (searchOption.fileID && typeof searchOption.fileID == 'number') {
+                    fileIdCondtion = `fileID = ${searchOption.fileID}`;
+                }
+
+                if (searchOption.creatorID) {
+                    if (Array.isArray(searchOption.creatorID) && searchOption.creatorID.length > 0) {
+                        const creatorIDs = searchOption.creatorID.filter(Boolean).join(',');
+                        creatorIdCondition = `creatorID IN (${creatorIDs})`;
+                    } else if (typeof searchOption.creatorID == 'number') {
+                        creatorIdCondition = `creatorID = ${searchOption.creatorID}`;
+                    }
+                }
+
+                if (searchOption.recipientID) {
+                    if (Array.isArray(searchOption.recipientID) && searchOption.recipientID.length > 0) {
+                        const recipientIDs = searchOption.recipientID.filter(Boolean).join(',');
+                        recipientIdCondition = `recipientID IN (${recipientIDs})`;
+                    } else if (typeof searchOption.creatorID == 'number') {
+                        recipientIdCondition = `recipientID = ${searchOption.recipientID}`;
+                    }
+                }
+
+                if (searchOption.recipientGroupID && typeof searchOption.recipientGroupID == 'number') {
+                    recipientGroupIdCondition = `recipientGroupID = ${searchOption.recipientGroupID}`;
+                }
+
+                /* Date format DD-MM-YYYY [HH:MM:SS] [24-hour system]*/
+                const datePattern = /^((\d{1,2}-\d{1,2}-\d{4})(\s\d{1,2}:\d{1,2}:\d{1,2})?)$/g
+                const timestampPattern = /^((\d{1,2}-\d{1,2}-\d{4})\s(\d{1,2}:\d{1,2}:\d{1,2}))$/g;
+                if (searchOption.dateFrom && searchOption.dateFrom.length > 0 && searchOption.dateFrom.match(datePattern)) {
+                    if (searchOption.dateFrom.match(timestampPattern)) {
+                        dateFromCondition = `TO_TIMESTAMP('${searchOption.dateFrom}', 'DD-MM-YYYY HH24:MI:SS')`;;
+                    } else {
+                        // Get date part from string
+                        let date = searchOption.dateFrom.match(/(\d{1,2}-\d{1,2}-\d{4})/g);
+                        date = date[0];
+
+                        dateFromCondition = `TO_TIMESTAMP('${date}', 'DD-MM-YYYY')`;;
+                    }
+                }
+                if (searchOption.dateTo && searchOption.dateTo.length > 0 && searchOption.dateTo.match(datePattern)) {
+                    if (searchOption.dateTo.match(timestampPattern)) {
+                        dateToCondition = `TO_TIMESTAMP('${searchOption.dateTo}', 'DD-MM-YYYY HH24:MI:SS')`;
+                    } else {
+                        // Get date part from string
+                        let date = searchOption.dateTo.match(/(\d{1,2}-\d{1,2}-\d{4})/g);
+                        date = date[0];
+
+                        dateToCondition = `TO_TIMESTAMP('${date}', 'DD-MM-YYYY')`;
+                    }
+                }
+
+                if (searchOption.offset && typeof searchOption.offset == 'number') {
+                    offsetCondition = `OFFSET ${searchOption.offset}`;
+                }
+
+                if (searchOption.limit && typeof searchOption.limit == 'number') {
+                    limitCondition = `LIMIT ${searchOption.limit}`;
+                }
+            }
+
+            let dateCondition = null;
+            if (dateFromCondition && dateToCondition) {
+                dateCondition = `(createdate BETWEEN ${dateFromCondition} AND ${dateToCondition})`;
+            } else if (dateFromCondition) {
+                dateCondition = `createdate >= ${dateFromCondition}`;
+            } else if (dateToCondition) {
+                dateCondition = `createdate <= ${dateToCondition}`;
+            }
+
+
+            let queryConditions = [creatorIdCondition, recipientIdCondition, fileIdCondtion, dateCondition].filter(Boolean).join(' AND ');
+            if (queryConditions.length > 0) {
+                queryConditions = ' AND ' + queryConditions;
+            }
+
+            sql = `
+                SELECT MessageInfo.messageID as messageID, filePath, fileType
+                FROM MessageInfo, MessageRecipient, FileInfo
+                WHERE MessageInfo.messageID = MessageRecipient.messageID AND MessageInfo.fileID = FileInfo.fileID AND MessageInfo.fileID IS NOT NULL
+                    ${queryConditions}
+                ORDER BY MessageInfo.messageID desc
+                ${offsetCondition}
+                ${limitCondition}
+            `;
+            // console.log(sql);
+            dbRes = await db.asyncQuery(sql);
+
+            let fileMessageResults = [];
+            for (let row of dbRes.rows) {                
+                fileMessageResults.push({
+                    messageID: row.messageid,
+                    filePath: row.filepath,
+                    fileType: row.filetype
+                });
+            }
+            return fileMessageResults;
+        }
+    },
+
+
+    /* Get registration requests info
+        @param {number} offset
+        @param {number} limit
+
+        @return {array} [
+            {
+                requestID:      {number},
+                email:          {string},
+                firstName:      {string},
+                lastName:       {string},
+                requestTime:    {string - DD-MM-YYYY HH24:MM:SS},
+                avatar:         {string}
+            },
+            ...
+        ]
+    */
+    getRegistrationRequests: async function (offset, limit) {
+        if (typeof offset === 'number' && typeof limit === 'number') {
+            try {
+                const sql = `
+                    SELECT requestID, email, firstName, lastName, TO_CHAR(requestTime, 'DD-MM-YYYY HH24:MM:SS') as requestTime, avatar
+                    FROM AccountRegistrationRequest
+                    OFFSET ${offset}
+                    LIMIT ${limit}
+                `;
+                const dbRes = await db.asyncQuery(sql);
+                
+                let registrationRequests = [];
+                for (let row of dbRes.rows) {
+                    const request = {
+                        requestID: row.requestid,
+                        email: row.email,
+                        firstName: row.firstname,
+                        lastName: row.lastname, 
+                        requestTime: row.requesttime,
+                        avatar: row.avatar
+                    }
+
+                    registrationRequests.push(request);
+                }
+
+                return registrationRequests;
+            } catch (err) {
+                console.log(err);
+                return [];
+            }
+        } else {
+            return [];
+        }
+    },
+
+
+    /*
+        Get total number of registration requests
+        
+        @return {number}
+    */
+    getRegistrationRequestsCount: async function () {
+        try {
+            const sql = `
+                SELECT COUNT(requestID) as count
+                FROM AccountRegistrationRequest
+            `;
+            const dbRes = await db.asyncQuery(sql);
+
+            if (dbRes.rows.length == 1) {
+                return dbRes.rows[0].count;
+            } else {
+                return null;
+            }
+        } catch (err) {
+            console.log(err);
+            return null;
         }
     }
 }

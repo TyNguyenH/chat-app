@@ -1,9 +1,12 @@
 import CONFIG from './config.js';
-import { renderFriendsNavTab, renderMessageSnippet, renderAllMessageSnippets, renderMessage, renderMessagesBox, syncMessages, previewFiles } from './home-functions.js';
+import { renderFriendsNavTab, renderMessageSnippet, renderAllMessageSnippets, renderMessage, renderMessagesBox, addMessageToSessionStorage, previewFiles } from './home-functions.js';
 
 
 let socket = io();
 socket.connect(`${CONFIG.serverAddress}:${CONFIG.serverPort}`, { secure: true });
+
+// Used to save whole page content (state)
+let bodyContent = null;
 
 const userInfo = document.querySelector('#user-info');
 const userID = userInfo.getAttribute('data-user-id');
@@ -131,14 +134,16 @@ window.onload = async () => {
             }
             recipientNameBar.setAttribute('data-friend-id', friendID);
 
-            // Highlight active friend tab
+            // Highlight active friend tab and add medium shadow
             let tempFriendsNavTab = document.querySelector('#friends-nav-tab');
             for (let friendTab of tempFriendsNavTab.children) {
                 friendTab.className = friendTab.className.replace(' active', ' inactive');
+                friendTab.className = friendTab.className.replace('shadow-md', '');
             }
             event.currentTarget.className = event.currentTarget.className.replace(' inactive', ' active');
+            event.currentTarget.classList.add('shadow-md');
 
-            // Remove new message notification (blue dot)
+            // Remove new message notification (blue dot) and make text become gray
             let messageSnippet = friendTab.querySelector('.friend-info > .message-snippet');
             if (friendTab.querySelector('.notification-dot')) {
                 messageSnippet.classList.remove('font-semibold');
@@ -146,14 +151,14 @@ window.onload = async () => {
                 friendTab.querySelector('.notification-dot').remove();
             }
 
-            // If messages data found in localStorage, then load them into chat messages box
-            if (localStorage.hasOwnProperty(`friend${friendID}`)) {
-                console.log('getting messages from localStorage');
-                const messages = JSON.parse(localStorage.getItem(`friend${friendID}`));
+            // If messages data found in sessionStorage, then load them into chat messages box
+            if (sessionStorage.hasOwnProperty(`friend${friendID}`)) {
+                console.log('getting messages from sessionStorage');
+                const messages = JSON.parse(sessionStorage.getItem(`friend${friendID}`));
                 renderMessagesBox(friendsNavTab, messages);
             } 
 
-            // Initial fetching messages between users, store them in localStorage and display them in chat message box
+            // Initial fetching messages between users, then store them in sessionStorage and display them in chat message box
             else {
                 const dateNow = new Date(Date.now());
                 const now = `${dateNow.getDate()}-${dateNow.getMonth() + 1}-${dateNow.getFullYear()} ${dateNow.getHours()}:${dateNow.getMinutes()}:${dateNow.getSeconds()}`;
@@ -173,16 +178,11 @@ window.onload = async () => {
                         const messages = data.messages;
                         
                         // Messages response data are found
-                        if (messages.length > 0) {
+                        if (messages && messages.length > 0) {
                             renderMessagesBox(friendsNavTab, messages);
 
-                            // Store newly fetched messages in localStorage if there's free space
-                            navigator.storage.estimate()
-                                .then(data => {
-                                    if (data.usage < data.quota) {
-                                        localStorage.setItem(`friend${friendID}`, JSON.stringify(messages));
-                                    }
-                                })
+                            // Store newly fetched messages in sessionStorage if there's free space
+                            sessionStorage.setItem(`friend${friendID}`, JSON.stringify(messages));
                         } 
                         
                         // No messages response data found
@@ -215,14 +215,17 @@ window.onload = async () => {
 
             // Avoid too much scrolling effect causing dizziness
             chatMsgBox.style['scroll-behavior'] = null;
-
-            // Automatically scroll down to last child view (bottom of messages box)
-            chatMsgBox.children[chatMsgBox.childElementCount - 1].scrollIntoView();
+            setTimeout(() => {
+                // Automatically scroll down to last child view (bottom of messages box)
+                if (chatMsgBox.childElementCount > 0) {
+                    chatMsgBox.children[chatMsgBox.childElementCount - 1].scrollIntoView();
+                }
+            }, 30);
         }
     }
 
     // Automatically click on friend tab when clicking new message notification on friend-list page
-    {
+    setTimeout(() => {
         let paramsString = location.href;
         let hrefParams = new URL(paramsString);
 
@@ -231,8 +234,11 @@ window.onload = async () => {
         if (notification == 'true' && friendsNavTab[senderID]) {
             let friendTab = friendsNavTab[senderID];
             friendTab.click();
+
+            // Change URL with params to '/home' without refreshing page
+            window.history.pushState('new state', 'Chat', '/home');
         }
-    }
+    }, 30);
 }
 
 
@@ -294,13 +300,13 @@ chatMsgBox.onscroll = async () => {
         await fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/messages/option?${queryString}`)
         .then(response => response.json())
         .then(data => {
-            const newMessages = data.messages;
-            console.log(newMessages);
+            const oldMessages = data.messages;
+            console.log(oldMessages);
 
-            if (newMessages.length > 0) {
+            if (oldMessages && oldMessages.length > 0) {
                 messagesCount[friendID].offset += 20;
 
-                for (let message of newMessages) {
+                for (let message of oldMessages) {
                     let messageCreator = '';
                     if (message.creatorID != userID) {
                         messageCreator = 'friend-message';
@@ -325,17 +331,8 @@ chatMsgBox.onscroll = async () => {
                     chatMsgBox.innerHTML = renderMessage(message.messageID, messageCreator, creatorAvatar, message.messageText, imgSrc, message.createDate, message.isRead) + chatMsgBox.innerHTML;
                 }
 
-                navigator.storage.estimate()
-                .then(data => {
-                    const quota = data.quota;
-                    const usage = data.usage;
-
-                    if (usage < quota && localStorage.hasOwnProperty(`friend${friendID}`)) {
-                        let currentMessages = JSON.parse(localStorage.getItem(`friend${friendID}`));
-                        const finalMessages = syncMessages(newMessages, currentMessages);
-                        localStorage.setItem(`friend${friendID}`, JSON.stringify(finalMessages));
-                    }
-                })
+                // Store fetched messages to sessionStorage
+                addMessageToSessionStorage(oldMessages, friendID);
             }
         });
 
@@ -355,6 +352,7 @@ form.onsubmit = (event) => {
         messageData.isRead = null;
 
         // Add backslash in front of each special character
+        messageTextInput.value = messageTextInput.value.trim();
         let tempMessageText = messageTextInput.value.split('');
         tempMessageText = tempMessageText.map((word) => {
             if (word.match(/[\W]/g) && !word.match(/[\s]/g)) {
@@ -374,7 +372,7 @@ form.onsubmit = (event) => {
         messageData.createDate = now;
 
         // Handling only text transfering
-        if (messageFileInput.files.length == 0 && messageTextInput.value.length > 0 && messageTextInput.value.length < (2**28)) {
+        if (messageFileInput.files.length == 0 && messageTextInput.value.length > 0 && messageTextInput.value.length < (5 * 10**5)) {
             messageData.messageText = tempMessageText.join('').trim();
             messageData.recipientID = Number.parseInt(friendID);
 
@@ -587,6 +585,7 @@ socket.on('message', (messageData) => {
             messageText: messageText,
             filePath: messageFilePath,
             fileType: messageFileType,
+            createDate: messageCreateDate,
             isRead: true
         }
         renderMessageSnippet(friendTab, message);
@@ -616,6 +615,7 @@ socket.on('message', (messageData) => {
                 messageText: messageText,
                 filePath: messageFilePath,
                 fileType: messageFileType,
+                createDate: messageCreateDate,
                 isRead: false
             }
             renderMessageSnippet(friendTab, message);
@@ -638,63 +638,23 @@ socket.on('message', (messageData) => {
         }
     }
 
-    // Store new message to localStorage
-    navigator.storage.estimate()
-        .then(data => {
-            const newMessage = {
-                messageID: Number.parseInt(messageData.messageID),
-                creatorID: Number.parseInt(messageData.senderID),
-                recipientID: Number.parseInt(messageData.recipientID),
-                recipientGroupID: Number.parseInt(messageData.recipientGroupID),
-                messageText: messageData.messageText,
-                filePath: messageData.file,
-                fileType: messageData.fileType,
-                isRead: messageData.isRead,
-                createDate: messageData.createDate
-            }
 
-            let friendID;
-            if (messageData.senderID != userID) {
-                friendID = messageData.senderID;
-            } else {
-                friendID = messageData.recipientID;
-            }            
-
-            if (data.usage < data.quota) {
-                // Add new message to the beginning of the messages array
-                if (localStorage.hasOwnProperty(`friend${friendID}`)) {
-                    let existingMessages = JSON.parse(localStorage.getItem(`friend${friendID}`));
-                    let newMessages = syncMessages([ newMessage ], existingMessages);
-                    localStorage.setItem(`friend${friendID}`, JSON.stringify(newMessages));
-                }
-                
-                // Initialize a new array of messages if messages are not found in localStorage
-                if (!localStorage.hasOwnProperty(`friend${friendID}`)) {
-                    const dateNow = new Date(Date.now());
-                    const now = `${dateNow.getDate()}-${dateNow.getMonth() + 1}-${dateNow.getFullYear()} ${dateNow.getHours()}:${dateNow.getMinutes()}:${dateNow.getSeconds()}`;
-
-                    const searchOption = `searchCreatorID=[${userID},${friendID}]&searchRecipientID=[${userID},${friendID}]&searchDateTo=${now}&searchLimit=20`;
-                    const resultOption = `resultMessageID=true&resultCreatorID=true&resultRecipientID=true&resultMessageText=true&resultFilePath=true&resultFileType=true&resultCreateDate=true&resultIsRead=true`;
-                    const queryString = `${searchOption}&${resultOption}`;
-
-                    fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/messages/option?${queryString}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            /*
-                                Array of messages ordered by descending create date
-                                messages[0]          --> Lastest
-                                messages[length - 1] --> Oldest
-                            */
-
-                            let messages = data.messages;
-
-                            messages = JSON.stringify(messages);
-                            localStorage.setItem(`friend${friendID}`, messages);
-                        }) 
-                }
-            }
-        })
-
+    // Store new message to sessionStorage
+    {
+        const newMessage = {
+            messageID: Number.parseInt(messageData.messageID),
+            creatorID: Number.parseInt(messageData.senderID),
+            recipientID: Number.parseInt(messageData.recipientID),
+            recipientGroupID: Number.parseInt(messageData.recipientGroupID),
+            messageText: messageData.messageText,
+            filePath: messageData.file,
+            fileType: messageData.fileType,
+            isRead: messageData.isRead,
+            createDate: messageData.createDate
+        }
+        
+        addMessageToSessionStorage(newMessage);
+    }
 });
 
 
@@ -711,9 +671,9 @@ socket.on('seen message', (messageData) => {
         friendID = messageData.senderID;
     }
 
-    // Update message status (message.isRead) in localStorage
-    if (localStorage.hasOwnProperty(`friend${friendID}`)) {
-        let messages = localStorage.getItem(`friend${friendID}`);
+    // Update message status (message.isRead) in sessionStorage
+    if (sessionStorage.hasOwnProperty(`friend${friendID}`)) {
+        let messages = sessionStorage.getItem(`friend${friendID}`);
         messages = JSON.parse(messages);
 
         let lastestMessageID;
@@ -731,7 +691,7 @@ socket.on('seen message', (messageData) => {
             }
         }
 
-        localStorage.setItem(`friend${friendID}`, JSON.stringify(messages));
+        sessionStorage.setItem(`friend${friendID}`, JSON.stringify(messages));
     }
 
     if (document.querySelector('#message-status') && senderID == userID) {
@@ -822,4 +782,4 @@ socket.on('user disconnection', (socketData) => {
             onlineSpan.remove();
         }
     }
-})
+});

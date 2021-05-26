@@ -89,34 +89,185 @@ io.on('connection', (socket) => {
 
     // Handle messageText and messageFile (file < 500KB)
     socket.on('message', (messageData) => {
-        const creatorID = Number.parseInt(messageData.senderID);
-        const recipientID = Number.parseInt(messageData.recipientID);
+        const senderID = Number.parseInt(messageData.senderID);
 
-        // Save message data into MessageInfo (FileInfo if messageData contains file data) and MessageRecipient table
-        if (creatorID && recipientID && !messageData.recipientGroupID
-            && (messageData.messageText || (messageData.file && messageData.fileType && messageData.fileType.includes('image')))) {
+        // Check if socket id valid or not
+        let validSocket = true;
+        if (activeUsers[senderID] && activeUsers[senderID].userSocketID !== socket.id) {
+            validSocket = false;
+            socket.disconnect(true);
+        }
 
-            const createDate = messageData.createDate;
-            let sql = `
-                INSERT INTO MessageInfo (creatorID, createDate)
-                VALUES (${creatorID}, TO_TIMESTAMP('${createDate}', 'DD-MM-YYYY HH24:MI:SS'))
-                RETURNING messageID, TO_CHAR(createDate, 'DD-MM-YYYY HH24:MI:SS') as createDate;
-            `;
+        if (validSocket) {
+            const creatorID = Number.parseInt(messageData.senderID);
+            const recipientID = Number.parseInt(messageData.recipientID);
 
-            db.query(sql, async (err, dbRes) => {
-                if (err) {
-                    console.log('Error inserting (creatorID, createDate) into MessageInfo');
-                    console.log(err);
-                } else {
-                    const messageID = dbRes.rows[0].messageid;
-                    messageData.messageID = messageID;
-                    messageData.isRead = false;
-                    messageData.createDate = dbRes.rows[0].createdate;
+            // Save message data into MessageInfo (FileInfo if messageData contains file data) and MessageRecipient table
+            if (creatorID && recipientID && !messageData.recipientGroupID
+                && (messageData.messageText || (messageData.file && messageData.fileType && messageData.fileType.includes('image')))) {
 
+                const createDate = messageData.createDate;
+                let sql = `
+                    INSERT INTO MessageInfo (creatorID, createDate)
+                    VALUES (${creatorID}, TO_TIMESTAMP('${createDate}', 'DD-MM-YYYY HH24:MI:SS'))
+                    RETURNING messageID, TO_CHAR(createDate, 'DD-MM-YYYY HH24:MI:SS') as createDate;
+                `;
+
+                db.query(sql, async (err, dbRes) => {
+                    if (err) {
+                        console.log('Error inserting (creatorID, createDate) into MessageInfo');
+                        console.log(err);
+                    } else {
+                        const messageID = dbRes.rows[0].messageid;
+                        messageData.messageID = messageID;
+                        messageData.isRead = false;
+                        messageData.createDate = dbRes.rows[0].createdate;
+
+                        sql = `
+                            INSERT INTO MessageRecipient (messageID, recipientID, hasRead)
+                            VALUES (${messageID}, ${recipientID}, false);
+                        `;
+
+                        db.query(sql, (err) => {
+                            if (err) {
+                                console.log('Error inserting into MessageRecipient table');
+                                console.log(err);
+                            }
+                        })
+
+                        // Update messageText from MessageInfo table if messageData contains messageText
+                        let messageText = messageData.messageText;
+                        if (messageText) {
+                            sql = `
+                                UPDATE MessageInfo
+                                SET messageText = E'${messageText}'
+                                WHERE messageID = ${messageID}
+                            `;
+
+                            db.query(sql, (err) => {
+                                if (err) {
+                                    console.log('Error updating messageText from MessageInfo');
+                                    console.log(err);
+                                }
+                            })
+                        }
+
+                        // Insert new data to FileInfo table and update fileID from MessageInfo table
+                        if (messageData.file && messageData.fileType) {
+                            // Save image file to server
+                            let imgBuffer = Buffer.from(messageData.file);
+                            const imgType = await FileType.fromBuffer(imgBuffer);
+
+                            if (imgType.ext) {
+                                let dateNow = Date.now();
+
+                                // image naming format: img_messageID_currentTime.imageType
+                                let fileOutput = `public/imgs/user-imgs/img_${messageID}_${dateNow}.${imgType.ext}`;
+
+                                // Write buffer to file
+                                let writeStream = fs.createWriteStream(fileOutput);
+                                writeStream.write(imgBuffer);
+                                writeStream.end();
+
+                                messageData.file = `/imgs/user-imgs/img_${messageID}_${dateNow}.${imgType.ext}`;
+                                messageData.fileType = imgType.ext;
+
+                                console.log('Write image successfully !');
+
+                                sql = `
+                                    INSERT INTO FileInfo (filePath, fileType)
+                                    VALUES ('${messageData.file}', '${messageData.fileType}')
+                                    RETURNING fileID
+                                `;
+
+                                db.query(sql, (err, dbRes) => {
+                                    if (err) {
+                                        console.log('Error inserting data into FileInfo');
+                                        console.log(err);
+                                    } else {
+                                        const fileID = dbRes.rows[0].fileid;
+
+                                        sql = `
+                                            UPDATE MessageInfo
+                                            SET fileID = ${fileID}
+                                            WHERE messageID = ${messageID}
+                                        `;
+
+                                        db.query(sql, (err) => {
+                                            if (err) {
+                                                console.log('Error updating fileID from MessageInfo');
+                                                console.log(err);
+                                            }
+                                        });
+                                    }
+                                })
+                            };
+                        }
+
+                        // Send back original message to sender to make sure that message is successfully sent
+                        socket.emit('message', messageData);
+
+                        // Send message to specific recipient
+                        if (activeUsers[messageData.recipientID]) {
+                            io.to(activeUsers[messageData.recipientID].userSocketID).emit('message', messageData);
+                        }
+                    }
+                })
+            }
+        }
+    })
+
+    // Initial received chunk of whole file
+    socket.on('start chunk', async (messageData, callback) => {
+        const senderID = Number.parseInt(messageData.senderID);
+
+        let validSocket = true;
+        if (activeUsers[senderID] && activeUsers[senderID].userSocketID !== socket.id) {
+            validSocket = false;
+            socket.disconnect(true);
+        }
+
+        if (validSocket) {
+            console.log('on start chunk', messageData);
+
+            if (messageData.senderID && messageData.recipientID) {
+                const creatorID = messageData.senderID;
+                const recipientID = messageData.recipientID;
+                const createDate = messageData.createDate;
+
+                let sql = `
+                    INSERT INTO MessageInfo (creatorID, createDate)
+                    VALUES (${creatorID}, TO_TIMESTAMP('${createDate}', 'DD-MM-YYYY HH24:MI:SS'))
+                    RETURNING messageID
+                `;
+
+                // Insert into MessageInfo table, then get returned messageID
+                const dbRes = await db.asyncQuery(sql);
+                const messageID = dbRes.rows[0].messageid;
+
+                // Update MessageInfo table with messageText
+                const messageText = messageData.messageText;
+                if (messageText) {
+                    sql = `
+                        UPDATE MessageInfo
+                        SET messageText = E'${messageText}'
+                        WHERE messageID = ${messageID}
+                    `;
+
+                    db.query(sql, (err) => {
+                        if (err) {
+                            console.log('Error updating messageText from MessageInfo');
+                            console.log(err);
+                        }
+                    })
+                }
+
+                // Insert into MessageRecipient table
+                {
                     sql = `
                         INSERT INTO MessageRecipient (messageID, recipientID, hasRead)
-                        VALUES (${messageID}, ${recipientID}, false);
-                    `
+                        VALUES (${messageID}, ${recipientID}, false)
+                    `;
 
                     db.query(sql, (err) => {
                         if (err) {
@@ -124,148 +275,19 @@ io.on('connection', (socket) => {
                             console.log(err);
                         }
                     })
-
-                    // Update messageText from MessageInfo table if messageData contains messageText
-                    let messageText = messageData.messageText;
-                    if (messageText) {
-                        sql = `
-                            UPDATE MessageInfo
-                            SET messageText = E'${messageText}'
-                            WHERE messageID = ${messageID}
-                        `;
-
-                        db.query(sql, (err) => {
-                            if (err) {
-                                console.log('Error updating messageText from MessageInfo');
-                                console.log(err);
-                            }
-                        })
-                    }
-
-                    // Insert new data to FileInfo table and update fileID from MessageInfo table
-                    if (messageData.file && messageData.fileType) {
-                        // Save image file to server
-                        let imgBuffer = Buffer.from(messageData.file);
-                        const imgType = await FileType.fromBuffer(imgBuffer);
-
-                        if (imgType.ext) {
-                            let dateNow = Date.now();
-
-                            // image naming format: img_messageID_currentTime.imageType
-                            let fileOutput = `public/imgs/user-imgs/img_${messageID}_${dateNow}.${imgType.ext}`;
-
-                            // Write buffer to file
-                            let writeStream = fs.createWriteStream(fileOutput);
-                            writeStream.write(imgBuffer);
-                            writeStream.end();
-
-                            messageData.file = `/imgs/user-imgs/img_${messageID}_${dateNow}.${imgType.ext}`;
-                            messageData.fileType = imgType.ext;
-
-                            console.log('Write image successfully !');
-
-                            sql = `
-                                INSERT INTO FileInfo (filePath, fileType)
-                                VALUES ('${messageData.file}', '${messageData.fileType}')
-                                RETURNING fileID
-                            `;
-
-                            db.query(sql, (err, dbRes) => {
-                                if (err) {
-                                    console.log('Error inserting data into FileInfo');
-                                    console.log(err);
-                                } else {
-                                    const fileID = dbRes.rows[0].fileid;
-
-                                    sql = `
-                                        UPDATE MessageInfo
-                                        SET fileID = ${fileID}
-                                        WHERE messageID = ${messageID}
-                                    `;
-
-                                    db.query(sql, (err) => {
-                                        if (err) {
-                                            console.log('Error updating fileID from MessageInfo');
-                                            console.log(err);
-                                        }
-                                    });
-                                }
-                            })
-                        };
-                    }
-
-                    // Send back original message to sender to make sure that message is successfully sent
-                    socket.emit('message', messageData);
-
-                    // Send message to specific recipient
-                    if (activeUsers[messageData.recipientID]) {
-                        io.to(activeUsers[messageData.recipientID].userSocketID).emit('message', messageData);
-                    }
                 }
-            })
-        }
-    })
 
-    // Initial received chunk of whole file
-    socket.on('start chunk', async (messageData, callback) => {
-        console.log('on start chunk', messageData);
+                // Send back messageID to sender client
+                callback(messageID);
+                messageData.messageID = messageID;
 
-        if (messageData.senderID && messageData.recipientID) {
-            const creatorID = messageData.senderID;
-            const recipientID = messageData.recipientID;
-            const createDate = messageData.createDate;
+                tempMessages[messageID] = {};
+                tempMessages[messageID].creatorID = messageData.senderID;
+                tempMessages[messageID].fileBuffer = Buffer.from(messageData.file);
 
-            let sql = `
-                INSERT INTO MessageInfo (creatorID, createDate)
-                VALUES (${creatorID}, TO_TIMESTAMP('${createDate}', 'DD-MM-YYYY HH24:MI:SS'))
-                RETURNING messageID
-            `;
-
-            const dbRes = await db.asyncQuery(sql);
-            const messageID = dbRes.rows[0].messageid;
-
-            // Update MessageInfo table with messageText
-            const messageText = messageData.messageText;
-            if (messageText) {
-                sql = `
-                    UPDATE MessageInfo
-                    SET messageText = E'${messageText}'
-                    WHERE messageID = ${messageID}
-                `;
-
-                db.query(sql, (err) => {
-                    if (err) {
-                        console.log('Error updating messageText from MessageInfo');
-                        console.log(err);
-                    }
-                })
+                socket.emit('request next chunk', messageData);
+                console.log('emit next chunk', messageData);
             }
-
-            // Insert into MessageRecipient table
-            {
-                sql = `
-                    INSERT INTO MessageRecipient (messageID, recipientID, hasRead)
-                    VALUES (${messageID}, ${recipientID}, false)
-                `;
-
-                db.query(sql, (err) => {
-                    if (err) {
-                        console.log('Error inserting into MessageRecipient table');
-                        console.log(err);
-                    }
-                })
-            }
-
-            // Send back messageID to sender client
-            callback(messageID);
-            messageData.messageID = messageID;
-
-            tempMessages[messageID] = {};
-            tempMessages[messageID].creatorID = messageData.senderID;
-            tempMessages[messageID].fileBuffer = Buffer.from(messageData.file);
-
-            socket.emit('request next chunk', messageData);
-            console.log('emit next chunk', messageData);
         }
     })
 
@@ -402,11 +424,21 @@ io.on('connection', (socket) => {
 
 
     socket.on('typing', (messageData) => {
-        console.log('userID:' + messageData.senderID + ' typing' + ' | socketID: ' + socket.id);
+        const senderID = Number.parseInt(messageData.senderID);
 
-        const userID = messageData.recipientID;
-        if (activeUsers[userID]) {
-            io.to(activeUsers[userID].userSocketID).emit('typing', messageData);
+        let validSocket = true;
+        if (activeUsers[senderID] && activeUsers[senderID].userSocketID !== socket.id) {
+            validSocket = false;
+            socket.disconnect(true);
+        }
+
+        if (validSocket) {
+            console.log('userID:' + messageData.senderID + ' typing' + ' | socketID: ' + socket.id);
+
+            const userID = messageData.recipientID;
+            if (activeUsers[userID]) {
+                io.to(activeUsers[userID].userSocketID).emit('typing', messageData);
+            }
         }
     })
 

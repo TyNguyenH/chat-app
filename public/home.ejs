@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="/css/styles.css">
-    <title>Trang chủ</title>
+    <title>Chat</title>
 
     <style>
         body {
@@ -18,7 +18,7 @@
         }
 
         .inactive {
-            background-color: #F9FAFB;
+            background-color: #FFFFFF;
         }
 
         .active {
@@ -30,15 +30,29 @@
 <body>
     <%- include('./partials/navbar.ejs') %>
 
-    <div id="home-wrapper" class="container mt-2 mx-auto w-10/12 h-5/6">
-        <div id="friends-nav-tab"
-             class="
-                float-left border-2 border-black border-r-0
+    <div id="home-wrapper" class="container mt-2 mx-auto w-9/12 h-5/6 shadow-md">
+        <div class="
+                relative float-left 
+                border-2 border-black border-r-0
                 rounded-tl-lg rounded-bl-lg
-                h-full w-1/3 overflow-auto
+                h-full w-1/3
                 text-lg font-semibold
-            ">
+        ">
+            <div class="
+                    absolute w-full py-1 h-10 z-10
+                    bg-gray-200 rounded-tl-lg
+                    text-lg text-center font-bold">
+                Bạn chat
+            </div>
+            <div id="friends-nav-tab"
+                class="
+                    h-full w-full pt-10
+                    rounded-tl-lg rounded-bl-lg
+                    text-lg overflow-auto
+                ">
+            </div>
         </div>
+
         <div id="conversation-wrapper" 
             class="flex flex-col justify-between float-right border-2 border-black rounded-tr-lg rounded-br-lg w-2/3 h-full">
             <div id="message-recipient-name-bar" class="py-1 h-12 bg-gray-200 rounded-tr-lg text-xl text-center font-bold">
@@ -94,7 +108,7 @@
     </div>
 
     <!-- Images previewing wrapper -->
-    <div id="files-preview-wrapper" class="hidden pb-3 mt-3 container flex flex-row mx-auto h-64 w-10/12">
+    <div id="files-preview-wrapper" class="hidden pb-3 mt-3 container flex flex-row mx-auto h-64 w-9/12">
         <!-- Dummy div (used to make UI look good) -->
         <div class="h-full w-1/3">
         </div>
@@ -121,16 +135,55 @@
                     id="cancel-files-preview"
                     class="
                         mx-auto mb-1 w-12 px-2
-                        cursor-pointer rounded-lg shadow-lg border border-gray-600
-                        bg-red-500 font-semibold text-lg text-center text-white
+                        cursor-pointer rounded-lg shadow-lg
+                        bg-red-600 font-semibold text-lg text-center text-white
                         focus:outline-none
                         transform hover:scale-105
                         transition duration-75
-                    ">
-                    Hủy
+                    ">Hủy
                 </div>
             </div>
+        </div>
+    </div>
 
+    <!-- File message viewer wrapper -->
+    <div id="file-message-viewer-wrapper" tabindex="0"
+        class="
+            flex flex-col
+            hidden absolute top-0 w-full h-full z-10
+            bg-black text-center text-3xl text-white">
+
+        <div class="relative flex flex-row w-full h-5/6">
+            <!-- Previous button -->
+            <div class="w-2/12 flex items-center justify-center">
+                <img id="back-btn" class="cursor-pointer border-2 border-gray-600 rounded-full transform hover:scale-105 transition duration-75 w-16"
+                    src="/imgs/dark-gray-back-icon.png">
+            </div>
+
+            <!-- File viewer -->
+            <div id="file-message-viewer" class="container flex items-center justify-center pt-8 w-8/12">
+                <img class="max-h-full rounded-md" src="" alt="image">
+            </div>
+
+            <!-- Next button -->
+            <div class="w-2/12 flex items-center justify-center">
+                <img id="next-btn" class="cursor-pointer border-2 border-gray-600 rounded-full transform hover:scale-105 transition duration-75 w-16"
+                    src="/imgs/dark-gray-next-icon.png">
+            </div>
+
+            <!-- Quit button -->
+            <div id="quit-btn" class="absolute w-max top-0 right-0 m-3 xl:m-6">
+                <img class="cursor-pointer rounded-full w-7 h-7 border border-white transform hover:scale-105 transition duration-75"
+                    src="/imgs/quit-icon.png">
+            </div>
+        </div>
+        
+        <!-- List of files (images) are going to be viewed -->
+        <div id="file-message-list" 
+            class="
+                whitespace-nowrap overflow-y-auto
+                flex flex-nowrap items-center justify-center
+                mx-auto w-full h-1/6 text-center">
             
         </div>
     </div>
@@ -140,6 +193,7 @@
     <script src="/js/lib/socket.io.min.js"></script>
     <script type="module" src="/js/home-functions.js"></script>
     <script type="module" src="/js/home.js"></script>
+    <script type="module" src="/js/view-file-message.js"></script>
     
 </body>
 

@@ -6,7 +6,10 @@ const express = require('express');
 const nodemailer = require('nodemailer');
 const multer = require('multer');
 const session = require('express-session');
+const logger = require('./logger.js');
 const serverAPI = require('./routes/server-api');
+const adminAPI = require('./routes/admin-api');
+const adminRoutes = require('./routes/admin-routes');
 
 require('dotenv').config();
 const db = require('./database/db');
@@ -14,12 +17,21 @@ const db = require('./database/db');
 
 
 
-
-
 const app = express();
 
 
-// Logger
+/*
+    Store latest session id of an user (userID)
+    {object} - activeLogins: {
+        userID: {
+            sessionID: {string}
+        }
+    }
+*/
+let activeLogins = {};
+
+
+// Print out warning log
 function log(req, notification) {
     console.log(`[Warning]:  ${req.method}  ${req.url}  ${notification}`);
 }
@@ -32,9 +44,16 @@ app.use(session({
     saveUninitialized: false,
     cookie: {
         // Require an https-enabled website for a secure cookie
-        secure: true
+        secure: true,
+
+        // 5 hour
+        maxAge: 18000000
     }
 }));
+
+
+// Write log data to ./log/log.txt
+// app.use(logger.writeLog);
 
 
 // Register view engine
@@ -51,6 +70,7 @@ app.disable('x-powered-by');
 // Allow only same origin
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', `${process.env.HOST_ADDRESS}:${process.env.HOST_PORT_SECURE}`);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, POST, DELETE');
     next();
 })
 
@@ -76,7 +96,7 @@ app.get('/register', (req, res) => {
 
 // Login page
 app.get('/login', (req, res) => {
-    if (req.session.user) {
+    if (req.session && req.session.user) {
         res.redirect('/home');
     } else {
         res.sendFile('./public/login.html', { root: __dirname });
@@ -101,88 +121,138 @@ app.get('/home', (req, res) => {
     // Prevent browser from caching
     res.header('Cache-Control', 'no-store, max-age=0');
 
-    if (!req.session.user) {
+    if (!req.session || !req.session.user) {
         res.redirect('/login');
     } else {
-        db.query(`SELECT userid, firstname, lastname, avatar
-                FROM UserInfo
-                WHERE userid = ${req.session.user.userID}`, (err, dbRes) => {
-            if (err) {
-                log(req, 'Error getting username and avatar:');
-                console.log(err);
-            } else {
-                let userID = dbRes.rows[0].userid;
-                let firstName = dbRes.rows[0].firstname;
-                let lastName = dbRes.rows[0].lastname;
-                let avatarSrc = dbRes.rows[0].avatar;
+        const userType = req.session.user.userType;
 
-                let data = { userID, firstName, lastName, avatarSrc };
-                res.render('home', data);
+        if (userType == 'normal') {
+            const userID = Number.parseInt(req.session.user.userID);
+
+            if (userID && activeLogins[userID] && activeLogins[userID].sessionID !== req.session.id) {
+                res.redirect('/logout');
             }
-        });
+
+            if (userID && activeLogins[userID] && activeLogins[userID].sessionID === req.session.id) {
+                const sql = `
+                    SELECT userid, firstname, lastname, avatar
+                    FROM UserInfo
+                    WHERE userid = ${userID}
+                `;
+                db.query(sql, (err, dbRes) => {
+                    if (err) {
+                        log(req, 'Error getting username and avatar:');
+                        console.log(err);
+                    } else {
+                        let userID = dbRes.rows[0].userid;
+                        let firstName = dbRes.rows[0].firstname;
+                        let lastName = dbRes.rows[0].lastname;
+                        let avatarSrc = dbRes.rows[0].avatar;
+
+                        let data = { userID, firstName, lastName, avatarSrc };
+                        res.render('home.ejs', data);
+                    }
+                });
+            }
+        }
+
+        if (userType == 'admin') {
+            res.redirect('/admin/home/');
+        }
     }
 });
 
 
 // Friend list page
 app.get('/friend-list', (req, res) => {
-    if (!req.session.user) {
+    if (!req.session || !req.session.user) {
         res.redirect('/login');
     } else {
-        // Get user info
-        db.query(`SELECT userid, firstname, lastname, avatar
-                FROM UserInfo
-                WHERE userid = ${req.session.user.userID}`,
+        const userType = req.session.user.userType;
 
-            (err, dbRes) => {
-                if (err) {
-                    log(req, 'Error getting user info:');
-                    console.log(err);
-                } else {
-                    const userID = dbRes.rows[0].userid;
-                    const firstName = dbRes.rows[0].firstname;
-                    const lastName = dbRes.rows[0].lastname;
-                    const avatarSrc = dbRes.rows[0].avatar;
+        if (userType == 'normal') {
+            const userID = Number.parseInt(req.session.user.userID);
 
-                    const data = { userID, firstName, lastName, avatarSrc };
-
-                    res.render('friend-list.ejs', data);
-                }
+            if (userID && activeLogins[userID] && activeLogins[userID].sessionID !== req.session.id) {
+                res.redirect('/logout');
             }
-        );
+
+            if (userID && activeLogins[userID] && activeLogins[userID].sessionID === req.session.id) {
+                // Get user info
+                db.query(`SELECT userid, firstname, lastname, avatar
+                FROM UserInfo
+                WHERE userid = ${userID}`,
+
+                    (err, dbRes) => {
+                        if (err) {
+                            log(req, 'Error getting user info:');
+                            console.log(err);
+                        } else {
+                            const userID = dbRes.rows[0].userid;
+                            const firstName = dbRes.rows[0].firstname;
+                            const lastName = dbRes.rows[0].lastname;
+                            const avatarSrc = dbRes.rows[0].avatar;
+
+                            const data = { userID, firstName, lastName, avatarSrc };
+
+                            res.render('friend-list.ejs', data);
+                        }
+                    }
+                );
+            }
+        }
+
+        if (userType == 'admin') {
+            res.redirect('/home');
+        }
     }
 });
 
 
 // Show full personal info of currently logged in user
 app.get('/personal-info', (req, res) => {
-    if (!req.session.user) {
+    if (!req.session || !req.session.user) {
         res.redirect('/login');
     } else {
-        const userID = Number.parseInt(req.session.user.userID);
-        if (userID) {
-            // Get user info
-            db.query(`SELECT userid, firstname, lastname, avatar
-                FROM UserInfo
-                WHERE userid = ${req.session.user.userID}`,
+        const userType = req.session.user.userType;
 
-                (err, dbRes) => {
-                    if (err) {
-                        log(req, 'Error getting user info:');
-                        console.log(err);
-                    } else {
-                        const userID = dbRes.rows[0].userid;
-                        const firstName = dbRes.rows[0].firstname;
-                        const lastName = dbRes.rows[0].lastname;
-                        const avatarSrc = dbRes.rows[0].avatar;
+        if (userType == 'normal') {
+            const userID = Number.parseInt(req.session.user.userID);
 
-                        const data = { userID, firstName, lastName, avatarSrc };
+            if (userID && activeLogins[userID] && activeLogins[userID].sessionID !== req.session.id) {
+                res.redirect('/logout');
+            }
 
-                        res.render('personal-info.ejs', data);
+            if (userID && activeLogins[userID] && activeLogins[userID].sessionID === req.session.id) {
+                const sql = `
+                    SELECT userid, firstname, lastname, avatar
+                    FROM UserInfo
+                    WHERE userid = ${userID}
+                `;
+
+                // Get user info
+                db.query(sql, (err, dbRes) => {
+                        if (err) {
+                            log(req, 'Error getting user info:');
+                            console.log(err);
+                        } else {
+                            const userID = dbRes.rows[0].userid;
+                            const firstName = dbRes.rows[0].firstname;
+                            const lastName = dbRes.rows[0].lastname;
+                            const avatarSrc = dbRes.rows[0].avatar;
+
+                            const data = { userID, firstName, lastName, avatarSrc };
+
+                            res.render('personal-info.ejs', data);
+                        }
                     }
-                }
-            );
-        } else {
+                );
+            } else {
+                res.redirect('/home');
+            }
+        }
+
+        if (userType == 'admin') {
             res.redirect('/home');
         }
     }
@@ -236,6 +306,7 @@ app.post('/register', (req, res) => {
     upload(req, res, (err) => {
         let fullFormData = true;
         for (let prop in req.body) {
+            req.body[prop] = req.body[prop].trim();
             if (req.body[prop].length == 0) {
                 fullFormData = false;
                 break;
@@ -243,63 +314,98 @@ app.post('/register', (req, res) => {
         }
 
         if (fullFormData && !err) {
-            const emailPattern = /^\b[\w\.-]+@[\w\.-]+\.\w{1,}\b$/g;
-            const fullNamePattern =
-                /^([(a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựýỳỵỷỹ)\s]{1,})$/g;
+            const accountRegConfig = JSON.parse(fs.readFileSync('./account-registration.config.json'));
 
-            let email = req.body['email'];
-            let password = req.body['password'];
-            let firstName = req.body['first-name'];
-            let lastName = req.body['last-name'];
+            // Verify registering user by email
+            if (accountRegConfig.registrationMode == 'verify email') {
+                const emailPattern = /^\b[\w\.-]+@[\w\.-]+\.\w{1,}\b$/g;
+                const fullNamePattern =
+                    /^([(a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựýỳỵỷỹ)\s]{1,})$/g;
 
-            if (email.match(emailPattern) && firstName.match(fullNamePattern) && lastName.match(fullNamePattern)) {
-                tempRegister[email].firstName = firstName;
-                tempRegister[email].lastName = lastName;
+                let email = req.body['email'];
+                let password = req.body['password'];
+                let firstName = req.body['first-name'];
+                let lastName = req.body['last-name'];
 
-                let shaSum = crypto.createHash('sha256');
-                const hashedPass = shaSum.update(password).digest('hex');
-                tempRegister[email].hashedPass = hashedPass;
+                if (email.match(emailPattern) && firstName.match(fullNamePattern) && lastName.match(fullNamePattern)) {
+                    tempRegister[email].firstName = firstName;
+                    tempRegister[email].lastName = lastName;
 
-                shaSum = crypto.createHash('sha256');
-                const secretCode = shaSum.update(`${Date.now()} s3cr3tK3Y`).digest('hex');
-                tempRegister[email].secretCode = secretCode;
-                tempRegister[email].beginTime = Date.now();
-                tempRegister[email].expire = 43200000;
+                    let shaSum = crypto.createHash('sha256');
+                    const hashedPass = shaSum.update(password).digest('hex');
+                    tempRegister[email].hashedPass = hashedPass;
 
-                // Config mail server
-                let transporter = nodemailer.createTransport({
-                    service: 'Gmail',
-                    auth: {
-                        user: 'chatapp.auth.noreply@gmail.com',
-                        pass: 'z!2)3LpG*%~U'
-                    }
-                });
+                    shaSum = crypto.createHash('sha256');
+                    const secretCode = shaSum.update(`${Date.now()} s3cr3tK3Y`).digest('hex');
+                    tempRegister[email].secretCode = secretCode;
+                    tempRegister[email].beginTime = Date.now();
+                    tempRegister[email].expire = 43200000;
 
-                // Initialize mail options
-                let mailOptions = {
-                    from: 'chatapp.auth.noreply@gmail.com',
-                    to: email,
-                    subject: 'Xác thực email',
-                    html: `<div style="margin: auto; text-align:center;">
+                    // Config mail server
+                    let transporter = nodemailer.createTransport({
+                        service: 'Gmail',
+                        auth: {
+                            user: 'chatapp.auth.noreply@gmail.com',
+                            pass: 'z!2)3LpG*%~U'
+                        }
+                    });
+
+                    // Initialize mail options
+                    let mailOptions = {
+                        from: 'chatapp.auth.noreply@gmail.com',
+                        to: email,
+                        subject: 'Xác thực email',
+                        html: `<div style="margin: auto; text-align:center;">
                             <p style="font-weight: bold; font-size: 22px;">Vui lòng click chọn xác thực để hoàn thành đăng ký:</p>
                             <a style="padding: 7px 8px; border: none; border-radius: 5px; background-color: #4287f5; color: white; text-decoration: none; font-weight: bold; font-size: 22px; cursor: pointer;" href="${process.env.HOST_ADDRESS}:${process.env.HOST_PORT_SECURE}/register/auth/${email}/${tempRegister[email].secretCode = secretCode}" target="_blank">Xác thực</a>
                         </div>`
-                }
+                    }
 
-                // Proceed sending email
-                transporter.sendMail(mailOptions, (err, info) => {
+                    // Proceed sending email
+                    transporter.sendMail(mailOptions, (err, info) => {
+                        if (err) {
+                            console.log(err);
+                            res.sendFile('./public/unsuccessful-reg.html', { root: __dirname });
+                        } else {
+                            console.log(`Message sent to: ${email}`);
+                            console.log(`href="${process.env.HOST_ADDRESS}:${process.env.HOST_PORT_SECURE}/register/auth/${email}/${tempRegister[email].secretCode = secretCode}"`);
+                            console.log(info.response, '\n');
+                        }
+                    });
+
+                    const message = 'Bạn vui lòng check email để xác thực tài khoản. (Lưu ý: Có thể email xác thực sẽ bị tài khoản mail của bạn chặn nên vui lòng kiểm tra hộp thư spam';
+                    res.render('notification.ejs', { message });
+                } else {
+                    res.sendFile('./public/unsuccessful-reg.html', { root: __dirname });
+                }
+            }
+
+            // Admin review account before letting user have an account
+            if (accountRegConfig.registrationMode == 'manual') {
+                let email = req.body['email'];
+
+                let password = req.body['password'];
+                let shaSum = crypto.createHash('sha256');
+                const hashedPass = shaSum.update(password).digest('hex');
+
+                let firstName = req.body['first-name'];
+                let lastName = req.body['last-name'];
+                let avatar = tempRegister[email].avatarFilePath;
+
+                const sql = `
+                    INSERT INTO AccountRegistrationRequest (email, requestPassword, firstName, lastName, requestTime, avatar)
+                    VALUES ('${email}', '${hashedPass}', '${firstName}', '${lastName}', NOW(), '${avatar}')
+                `;
+
+                db.query(sql, (err) => {
                     if (err) {
                         console.log(err);
                         res.sendFile('./public/unsuccessful-reg.html', { root: __dirname });
                     } else {
-                        console.log(`Message sent to: ${email}`);
-                        console.log(info.response, '\n');
+                        const message = 'Thông tin đăng ký của bạn sẽ được quản trị viên kiểm duyệt. Bạn sẽ nhận đc email thông báo khi quá trình duyệt hoàn tất.';
+                        res.render('notification.ejs', { message });
                     }
-                });
-
-                res.render('notification.ejs', { message: 'Bạn vui lòng check email để xác thực tài khoản'})
-            } else {
-                res.sendFile('./public/unsuccessful-reg.html', { root: __dirname });
+                })
             }
         } else {
             res.sendFile('./public/unsuccessful-reg.html', { root: __dirname });
@@ -331,12 +437,11 @@ app.get('/register/auth/:email/:secretCode', (req, res) => {
 
                 res.sendFile('./public/unsuccessful-reg.html', { root: __dirname });
             } else {
-                // Insert data into UserInfo table
                 let userID = dbRes.rows[0].userid;
 
                 const sql = `
                     INSERT INTO UserInfo (userID, firstName, lastName, avatar, createDate, isActive, firstNameEng, lastNameEng)
-                    VALUES (${userID}, '${firstName}', '${lastName}', '${avatarFilePath}', NOW()::DATE, true, convertVnToEng(firstName), convertVnToEng(lastName))
+                    VALUES (${userID}, '${firstName}', '${lastName}', '${avatarFilePath}', NOW()::DATE, true, convertVnToEng('${firstName}'), convertVnToEng('${lastName}'))
                 `;
 
                 db.query(sql, (err) => {
@@ -357,7 +462,7 @@ app.get('/register/auth/:email/:secretCode', (req, res) => {
     }
 
     else {
-        // Delete user data if email authentication failed
+        // Delete user data and avatar if email authentication failed
         if (tempRegister[email]) {
             fs.unlinkSync(path.join(__dirname, 'public', tempRegister[email].avatarFilePath));
             delete tempRegister[email];
@@ -386,7 +491,7 @@ let tempLogin = {};
 
 // Handling login data
 app.use(express.urlencoded({ extended: true }));
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
     const invalidLetters = /[^\w@\.-]/g;
     let email = req.body.email.replace(invalidLetters, '');
 
@@ -404,26 +509,53 @@ app.post('/login', (req, res) => {
 
         res.render('login-notification', { message: `Bạn đã đăng nhập sai quá 5 lần. Vui lòng đợi khoảng ${remainingWaitTime} nữa` });
     } else {
+        // Hashing plain text password
         const shaSum = crypto.createHash('sha256');
         const hashedPass = shaSum.update(req.body.password).digest('hex');
 
-        const sql = `
-        SELECT a.userId, a.email, a.userPassword
-        FROM UserAccount a, UserInfo b
-        WHERE a.userId = b.userId
-            AND a.email = '${email}'
-        `;
+        let userID;
+        let userType = '';
+        let correctEmail = false;
+        let correctPassword = false;
+        let correctLogin = false;
 
-        db.query(sql, (err, dbRes) => {
-            if (err) {
-                log(req, 'Error checking user login:');
-                console.log(err);
+        // Administrative user checking
+        if (email.includes('admin') && !email.includes('@')) {
+            const sql = `
+                SELECT adminName, adminID, adminPassword
+                FROM AdminAccount
+                WHERE adminName = '${email}'
+            `;
+
+            const dbRes = await db.asyncQuery(sql);
+            if (dbRes.rows.length == 1) {
+                correctEmail = true;
+
+                let password = dbRes.rows[0].adminpassword;
+                if (hashedPass == password) {
+                    correctPassword = true;
+                    correctLogin = true;
+                    userType = 'admin';
+                    userID = dbRes.rows[0].adminid;
+                }
             } else {
-                let userID;
-                let correctLogin = false;
-                let correctEmail = false;
-                let correctPassword = false;
+                correctEmail = false;
+                correctLogin = false;
+            }
+        }
 
+        // Normal user checking
+        else {
+            let emailPattern = /\b[\w\.-]+@[\w\.-]+\.\w{2,4}\b/;
+            if (email.match(emailPattern)) {
+                const sql = `
+                    SELECT a.userID, a.email, a.userPassword
+                    FROM UserAccount a, UserInfo b
+                    WHERE a.userID = b.userID
+                        AND a.email = '${email}'
+                `;
+
+                const dbRes = await db.asyncQuery(sql);
                 if (dbRes.rows.length == 1) {
                     correctEmail = true;
 
@@ -431,77 +563,157 @@ app.post('/login', (req, res) => {
                     if (hashedPass == password) {
                         correctPassword = true;
                         correctLogin = true;
+                        userType = 'normal'
                         userID = dbRes.rows[0].userid;
                     }
                 }
+            } else {
+                correctEmail = false;
+                correctLogin = false;
+            }
+        }
 
-                if (!correctLogin) {
-                    let message = '';
+        // Handling incorrect login
+        if (!correctLogin) {
+            let message = '';
 
-                    if (!correctEmail) {
-                        message = 'Tài khoản email không tồn tại !';
-                    } else if (!correctPassword) {
-                        message = 'Sai mật khẩu !';
+            if (!correctEmail) {
+                message = 'Tài khoản không tồn tại !';
+            } else if (!correctPassword) {
+                message = 'Sai mật khẩu !';
 
-                        // Start counting login attempts
-                        if (!tempLogin[email]) {
-                            tempLogin[email] = {};
-                            tempLogin[email].loginCount = 5 - 1;
-                            tempLogin[email].startWait = Date.now();
-                            tempLogin[email].waitTime = 0;
-                        }
+                // Start counting login attempts
+                if (!tempLogin[email]) {
+                    tempLogin[email] = {};
+                    tempLogin[email].loginCount = 5 - 1;
+                    tempLogin[email].startWait = Date.now();
+                    tempLogin[email].waitTime = 0;
+                }
 
-                        // Continue counting login attempts
-                        else {
-                            // Decrease login attempts
-                            if (tempLogin[email].loginCount > 0) {
-                                tempLogin[email].loginCount -= 1;
+                // Continue counting login attempts
+                else {
+                    // Decrease login attempts
+                    if (tempLogin[email].loginCount > 0) {
+                        tempLogin[email].loginCount -= 1;
 
-                                if (tempLogin[email].loginCount == 0 && tempLogin[email].waitTime == 0) {
-                                    tempLogin[email].waitTime = 300000;
-                                }
-                            }
-
-                            // Reset counting login attempts & increase waiting time, if waiting time is over
-                            if (tempLogin[email].loginCount == 0 && tempLogin[email].waitTime > 0 && (Date.now() - tempLogin[email].startWait >= tempLogin[email].waitTime)) {
-                                tempLogin[email].loginCount = 5 - 1;
-                                tempLogin[email].startWait = Date.now();
-                                tempLogin[email].waitTime *= 5;
-
-                                // If waiting is exceeding maximum number value, restart to 5 minutes
-                                if (tempLogin[email].waitTime == Number.MAX_SAFE_INTEGER) {
-                                    tempLogin[email].waitTime = 300000;
-                                }
-                            }
+                        if (tempLogin[email].loginCount == 0 && tempLogin[email].waitTime == 0) {
+                            tempLogin[email].waitTime = 300000;
                         }
                     }
 
-                    res.render('login-notification', { message });
-                } else {
-                    // Remove checking login attempts (if exist)
-                    if (tempLogin[email]) {
-                        delete tempLogin[email];
-                    }
+                    // Reset counting login attempts & increase waiting time, if waiting time is over
+                    if (tempLogin[email].loginCount == 0 && tempLogin[email].waitTime > 0 && (Date.now() - tempLogin[email].startWait >= tempLogin[email].waitTime)) {
+                        tempLogin[email].loginCount = 5 - 1;
+                        tempLogin[email].startWait = Date.now();
+                        tempLogin[email].waitTime *= 5;
 
-                    req.session.user = {
-                        userID: userID
+                        // If waiting is exceeding maximum number value, restart to 5 minutes
+                        if (tempLogin[email].waitTime == Number.MAX_SAFE_INTEGER) {
+                            tempLogin[email].waitTime = 300000;
+                        }
                     }
-                    res.redirect('/home');
                 }
             }
-        });
+
+            res.render('login-notification', { message });
+        } else {
+            // Remove checking login attempts (if exist)
+            if (tempLogin[email]) {
+                delete tempLogin[email];
+            }
+
+            // Save latest successful loggin
+            {
+                if (activeLogins[userID] && activeLogins[userID].sessionID !== req.session.id) {
+                    req.session.destroy
+                }
+
+                activeLogins[userID] = {};
+                activeLogins[userID].sessionID = req.session.id;
+
+                console.log('Active loggins:', activeLogins);
+            }
+
+            if (userType == 'normal') {
+                req.session.user = {
+                    userID: userID,
+                    userType: 'normal'
+                }
+            }
+
+            if (userType == 'admin') {
+                req.session.user = {
+                    userID: userID,
+                    userType: 'admin'
+                }
+
+                // 9 hours
+                req.session.cookie.maxAge = 32400000;
+            }
+
+            res.redirect('/home');
+        }
     }
 
     console.log('Login attempt(s):', tempLogin);
 });
 
 
-// End points that serve request and send data to client side
-app.use('/api/', serverAPI);
+
+
+
+
+function checkSession(req, res, next) {
+    // Allow checking existing email account(s) API
+    if (req.url.includes('/register/')) {
+        next();
+        return;
+    }
+
+    if (req.session && req.session.user) {
+        const userID = req.session.user.userID;
+
+        // Destroy session if it's outdated
+        if ((activeLogins[userID] && req.session) && activeLogins[userID].sessionID !== req.session.id) {
+            console.log(`Invalid session id | ${req.session.id}`);
+            req.session.destroy((err) => {
+                if (err) {
+                    log(req, 'Error destroying session:');
+                    console.log(err);
+                }
+            });            
+            res.end();
+            return;
+        }
+
+        // Proceed to handling next route/middleware
+        else {
+            next();
+        }
+    } else {
+        res.redirect('/login');
+    }
+}
+
+
+// API calls for normal users
+app.use('/api/', (req, res, next) => checkSession(req, res, next), serverAPI);
+
+
+// Routes for administrators
+app.use('/admin/', (req, res, next) => checkSession(req, res, next), adminRoutes);
+
+
+// API calls for administrators
+app.use('/admin-api/', (req, res, next) => checkSession(req, res, next), adminAPI);
+
+
+
+
 
 
 // Return 404 page when no resources found
-const staticFileCacheTime = 86400000 // (24-hour)
+const staticFileCacheTime = 18000000 // (5 hours)
 app.use((req, res, next) => {
     // Redirect to 404 page if requested resource is notification page
     let requestResource = req.url.replace('/', '');
@@ -513,15 +725,18 @@ app.use((req, res, next) => {
     // Redirect to 404 page if requested url is not valid
     let validPath = fs.existsSync(path.join(__dirname, 'public', req.url));
 
-    // If user is not logged in and tries to access images or avatars file, then redirect to 404.html
-    if (validPath && (req.url.includes('avatar') || req.url.includes('user-imgs') ) && !req.session.user) {
-        res.status(404).sendFile(path.join(__dirname, 'public/404.html'));
+    // If user is not logged in and tries to access images or avatars file, then end request and return
+    if (validPath && (req.url.includes('avatar') || req.url.includes('user-imgs')) && (!req.session || !req.session.user)) {
+        res.end();
+        return;
     }
 
     if (!validPath) {
         console.log(path.join(__dirname, 'public', req.url));
         console.log('Wrong path !');
-        res.redirect('/404.html');
+        res.status(404).end();
+        
+        logger.writeLog(req, res, next);
     } else {
         // Move to serving static files
         next();

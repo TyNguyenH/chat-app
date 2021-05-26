@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const express = require('express');
 const db = require('../database/db');
 const dbFunctions = require('../database/db-functions');
@@ -33,14 +34,27 @@ router.get('/register/email', (req, res) => {
                 };
 
                 if (dbRes.rows.length == 0) {
-                    data.status = 'OK';
+                    db.query(`SELECT email FROM AccountRegistrationRequest WHERE email = '${email}'`, (err, dbRes) => {
+                        if (err) {
+                            log(req, 'Error getting user email');
+                            console.log(err);
+
+                            res.send({ msg: 'Database error' });
+                        } else {
+                            if (dbRes.rows.length == 0) {
+                                data.status = 'OK';
+                            } else {
+                                data.status = 'requesting';
+                            }
+                            res.send(data);
+                        }
+                    })
                 }
                 
                 if (dbRes.rows.length == 1) {
                     data.status = 'existed';
+                    res.send(data);
                 }
-
-                res.send(data);
             }
         });
     } else {
@@ -51,13 +65,13 @@ router.get('/register/email', (req, res) => {
 
 // Get currently logged in user full info
 router.get('/personal-info', (req, res) => {
-    if (!req.session.user) {
+    if (!req.session || !req.session.user) {
         res.send({});
     } else {
         const userID = Number.parseInt(req.session.user.userID);
         if (userID) {
             const sql = `
-                SELECT a.email, b.firstName, b.lastName, b.avatar, TO_CHAR(b.createDate, 'DD-MM-YYYY') as createDate, isActive
+                SELECT b.userID, a.email, b.firstName, b.lastName, b.avatar, TO_CHAR(b.createDate, 'DD-MM-YYYY') as createDate, isActive
                 FROM UserAccount a, UserInfo b
                 WHERE a.userID = b.userID
                     AND b.userID = ${userID}
@@ -70,10 +84,11 @@ router.get('/personal-info', (req, res) => {
                 } else {
                     if (dbRes.rows.length == 1) {
                         const userFullInfo =  {
-                            avatarSrc: dbRes.rows[0].avatar,
+                            userID: dbRes.rows[0].userid,
+                            email: dbRes.rows[0].email,
                             firstName: dbRes.rows[0].firstname,
                             lastName: dbRes.rows[0].lastname,
-                            email: dbRes.rows[0].email,
+                            avatarSrc: dbRes.rows[0].avatar,
                             dateJoined: dbRes.rows[0].createdate,
                             isActive: dbRes.rows[0].isactive
                         }; 
@@ -85,12 +100,82 @@ router.get('/personal-info', (req, res) => {
             res.send({});
         }
     }
-})
+});
+
+
+// Update user's password
+router.put('/user-account', (req, res) => {
+    if (!req.session || !req.session.user) {
+        res.send({});
+    } else {
+        const userID = Number.parseInt(req.session.user.userID);
+        if (userID) {
+            let response = { message: 'fail' };
+            let oldPassword = req.body.oldPassword;
+            let newPassword = req.body.newPassword;
+            
+            let shaSum = crypto.createHash('sha256');
+            const oldHashedPassword = shaSum.update(oldPassword).digest('hex');
+
+            shaSum = crypto.createHash('sha256');
+            const newHashedPassword = shaSum.update(newPassword).digest('hex');
+
+            // Update password
+            if (oldHashedPassword && newHashedPassword) {
+                let sql = `
+                    SELECT userPassword
+                    FROM UserAccount
+                    WHERE userID = ${userID}
+                `;
+
+                db.query(sql, (err, dbRes) => {
+                    if (err) {
+                        console.log(err);
+                        res.send(response);
+                    } 
+                    
+                    // Correct userID
+                    if (dbRes.rows.length == 1) {
+                        // Correct old password
+                        const userPassword = dbRes.rows[0].userpassword;
+                        if (oldHashedPassword === userPassword) {
+                            sql = `
+                                UPDATE UserAccount
+                                SET userPassword = '${newHashedPassword}'
+                                WHERE userID = ${userID}
+                            `;
+
+                            db.query(sql, (err) => {
+                                if (err) {
+                                    console.log(err);
+                                    res.send(response);
+                                } else {
+                                    response.message = 'success';
+                                    res.send(response);
+                                }
+                            });
+                        } 
+                        
+                        // Incorrect old password
+                        else {
+                            res.send(response);
+                        }
+                    }
+
+                    // Incorrect userID
+                    if (dbRes.rows.length == 0) {
+                        res.send(response);
+                    }
+                });
+            }
+        }
+    }
+});
 
 
 // Search friend(s) info
 router.get('/friend-list/option', async (req, res) => {
-    if (!req.session.user) {
+    if (!req.session || !req.session.user) {
         res.redirect('/login');
     } else {
         const userID = req.session.user.userID;
@@ -171,7 +256,7 @@ router.get('/friend-list/option', async (req, res) => {
 
 // Get messages of current session user and user's friend
 router.get('/messages/option', async (req, res) => {
-    if (!req.session.user) {
+    if (!req.session || !req.session.user) {
         res.redirect('/login');
     } else {
         let searchOption = {};
@@ -316,9 +401,102 @@ router.get('/messages/option', async (req, res) => {
 });
 
 
+// Get file messages (images, ...)
+router.get('/file-messages/option', async (req, res) => {
+    let searchOption = {};
+    let validRequest = false;
+    const userID = req.session.user.userID;
+    const queryString = req.query;
+
+    if (queryString) {
+        /* Check queryString search option */
+        {
+            if (queryString.searchCreatorID) {
+                let creatorID = null;
+
+                // searchCreatorID is an array
+                if (queryString.searchCreatorID.includes('[')) {
+                    creatorID = queryString.searchCreatorID.replace(/[\[\]]/g, '');
+                    creatorID = creatorID.split(',');
+                    creatorID = creatorID.map((ID) => {
+                        if (ID == userID) {
+                            validRequest = true;
+                        }
+                        return Number.parseInt(ID);
+                    });
+                }
+
+                // searchCreatorID is a string number
+                else {
+                    if (creatorID == userID) {
+                        validRequest = true;
+                    }
+                    creatorID = Number.parseInt(queryString.searchCreatorID);
+                }
+
+                searchOption.creatorID = creatorID;
+            }
+
+            if (queryString.searchRecipientID) {
+                let recipientID = null;
+
+                // searchRecipientID is an array
+                if (queryString.searchRecipientID.includes('[')) {
+                    recipientID = queryString.searchRecipientID.replace(/[\[\]]/g, '');
+                    recipientID = recipientID.split(',');
+                    recipientID = recipientID.map((ID) => {
+                        if (ID == userID) {
+                            validRequest = true;
+                        }
+                        return Number.parseInt(ID);
+                    });
+                }
+
+                // searchRecipientID is a string number
+                else {
+                    if (recipientID == userID) {
+                        validRequest = true;
+                    }
+                    recipientID = Number.parseInt(queryString.searchRecipientID);
+                }
+                searchOption.recipientID = recipientID;
+            }
+
+            if (queryString.searchDateFrom) {
+                searchOption.dateFrom = queryString.searchDateFrom;
+            }
+
+            if (queryString.searchDateTo) {
+                searchOption.dateTo = queryString.searchDateTo;
+            }
+
+            if (queryString.searchOffset) {
+                searchOption.offset = Number.parseInt(queryString.searchOffset);
+            }
+
+            if (queryString.searchLimit) {
+                searchOption.limit = Number.parseInt(queryString.searchLimit);
+            }
+        }
+
+        console.log('\n=== Get file messages ===');
+        console.log('searchOption:', searchOption);
+
+        if (validRequest) {
+            const fileMessages = await dbFunctions.getFileMessages(searchOption);
+            res.send({ fileMessages });
+        } else {
+            res.send({ fileMessages: [] });
+        }
+    } else {
+        res.send({ fileMessages: [] });
+    }
+});
+
+
 // Friend request
 router.post('/friend-list/add-friend/:friendID', (req, res) => {
-    if (req.session.user) {
+    if (req.session && req.session.user) {
         const userID = Number.parseInt(req.session.user.userID);
         const friendID = Number.parseInt(req.params.friendID);
 
@@ -340,7 +518,7 @@ router.post('/friend-list/add-friend/:friendID', (req, res) => {
 
 // Accept friend request
 router.put('/friend-list/accept/:friendID', (req, res) => {
-    if (req.session.user) {
+    if (req.session && req.session.user) {
         const userID = Number.parseInt(req.session.user.userID);
         const friendID = Number.parseInt(req.params.friendID);
 
@@ -371,7 +549,7 @@ router.put('/friend-list/accept/:friendID', (req, res) => {
 
 // Deactivate user account
 router.put('/deactivate-user', (req, res) => {
-    if (req.session.user) {
+    if (req.session && req.session.user) {
         const userID = Number.parseInt(req.session.user.userID);
         if (userID) {
             const sql = `
@@ -395,7 +573,7 @@ router.put('/deactivate-user', (req, res) => {
 
 // Deactivate user account
 router.put('/activate-user', (req, res) => {
-    if (req.session.user) {
+    if (req.session && req.session.user) {
         const userID = Number.parseInt(req.session.user.userID);
         if (userID) {
             const sql = `
@@ -419,7 +597,7 @@ router.put('/activate-user', (req, res) => {
 
 // Unfriend
 router.delete('/friend-list/unfriend/:friendID', (req, res) => {
-    if (req.session.user) {
+    if (req.session && req.session.user) {
         const userID = Number.parseInt(req.session.user.userID);
         const friendID = Number.parseInt(req.params.friendID);
 
@@ -446,7 +624,7 @@ router.delete('/friend-list/unfriend/:friendID', (req, res) => {
 
 // Decline friend request
 router.delete('/friend-list/decline/:friendID', (req, res) => {
-    if (req.session.user) {
+    if (req.session && req.session.user) {
         const userID = Number.parseInt(req.session.user.userID);
         const friendID = Number.parseInt(req.params.friendID);
 

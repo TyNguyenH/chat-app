@@ -17,8 +17,6 @@ let filesPreview = document.querySelector('#files-preview');
 // Render friends navigation tab
 async function renderFriendsNavTab() {
     let friendsNavTab = document.querySelector('#friends-nav-tab');
-    friendsNavTab.innerHTML += 
-        '<div class="py-1 h-10 border-b-2 border-black bg-gray-200 rounded-tr-lg text-lg text-center font-bold">Bạn chat</div>';
 
     const searchOption = `searchFriendStatus=friend`;
     const resultOption = `resultFriendID=true&resultFirstName=true&resultLastName=true&resultAvatar=true&resultFriendStatus=true`;
@@ -51,14 +49,14 @@ async function renderFriendsNavTab() {
                 `<div class="
                         friend-msg-tab inactive
                         relative flex items-center
-                        px-2 h-20
-                        border-b-2 border-black
-                        cursor-pointer
+                        m-2 px-2 h-20
+                        rounded-md cursor-pointer
+                        transition duration-75
                         hover:bg-gray-200"
                     data-friend-id=${friend.friendID}>
                     ${friendAvatar}
                     ${friendInfo}
-                </div>`
+                </div>`;
 
             friendsNavTab.innerHTML += friendTab;
         }
@@ -105,21 +103,75 @@ function renderMessageSnippet(friendTab, message) {
         }
     }
 
-    if ((message.filePath && !message.messageText) || (message.file && message.messageText)) {
-        messageSnippet.innerHTML += 'Đã gửi hình ảnh';
+    // Image message snippet
+    if ((message.filePath && !message.messageText) || (message.filePath && message.messageText)) {
+        messageSnippet.innerHTML = 'Đã gửi hình ảnh';
     }
 
-    /* Handle styling of message snippet */
+    /* Handle message created time, message text, and reading status (read/unread) */
     {
-        // Mark unread message with blue dot and make its font become bold
+        // Handle message created time
+        let timestamp = '';
+        let timeElement = '';
+        {
+            let dateNow = new Date(Date.now());
+            let date = dateNow.getDate() >= 10 ? dateNow.getDate() : ('0' + dateNow.getDate());
+            let month = dateNow.getMonth() >= 10 ? (dateNow.getMonth() + 1) : ('0' + (dateNow.getMonth() + 1));
+            let year = dateNow.getFullYear();
+
+            // DD-MM-YYYY
+            dateNow = `${date}-${month}-${year}`;
+
+            // DD-MM-YYYY
+            const dateCreated = message.createDate.split(' ')[0];
+
+            // HH24:MM:SS
+            const timeCreated = message.createDate.split(' ')[1];
+
+            if (dateCreated == dateNow) {
+                // HH24:MM:SS
+                const hour = timeCreated.split(':')[0];
+                const minute = timeCreated.split(':')[1];
+                timestamp = `${hour}:${minute}`;
+            } else {
+                const messageYear = dateCreated.split('-')[2];
+                const currentYear = year;
+                if (messageYear == currentYear) {
+                    // Convert DD-MM to DD/MM
+                    timestamp = `${dateCreated.split('-')[0]}/${dateCreated.split('-')[1]}`;
+                } else {
+                    // Convert DD-MM-YYYY to DD/MM/YYYY
+                    timestamp = dateCreated.replace('-', '/');
+                }
+            }
+
+            timeElement = `
+                <div class="message-create-date text-xs font-normal text-center">
+                    ${timestamp}
+                </div>
+            `;
+        }
+
+        let notificationElement = '';
+
+        // If message is not read, mark unread message with blue dot and make its font become bold
         if (message.recipientID == userID && !message.isRead && !friendTab.querySelector('.notification-dot')) {
             messageSnippet.classList.remove('text-gray-400', 'font-normal');
             messageSnippet.classList.add('font-semibold');
-            friendTab.innerHTML += `<div class="notification-dot"><img src="/imgs/blue-dot.png" class="absolute right-0 mr-2 w-3"></div>`;
+
+            notificationElement = `
+                <div class="notification-dot relative self-end">
+                    <img src="/imgs/blue-dot.png" class="w-3">
+                </div>
+            `;
         }
 
-        // Delete message's blue notification dot and make its font become light
+        // If message is read, delete message's blue notification dot and make its font become light
         if (message.recipientID == userID && message.isRead) {
+            if (friendTab.querySelector('.notification-dot')) {
+                friendTab.querySelector('.notification-dot').remove();
+            }
+
             if (messageSnippet.classList.contains('font-semibold')) {
                 messageSnippet.classList.remove('font-semibold');
             }
@@ -127,10 +179,22 @@ function renderMessageSnippet(friendTab, message) {
             if (!messageSnippet.classList.contains('text-gray-400') && !messageSnippet.classList.contains('font-normal')) {
                 messageSnippet.classList.add('text-gray-400', 'font-normal');
             }
+        }
 
-            if (friendTab.querySelector('.notification-dot')) {
-                friendTab.querySelector('.notification-dot').remove();
-            }
+        // Complete rendering message created time and notification dot
+        if (!friendTab.querySelector('.message-status')) {
+            friendTab.innerHTML += `
+                <div class="message-status flex flex-col absolute right-2 py-5 h-full items-center justify-between">
+                    ${timeElement}
+                    ${notificationElement}
+                </div>
+            `;
+        } else {
+            // Update existing message time created
+            friendTab.querySelector('.message-status > .message-create-date').innerHTML = timestamp;
+
+            // Update notification element
+            friendTab.querySelector('.message-status').innerHTML += notificationElement;
         }
     }
 }
@@ -147,7 +211,7 @@ function renderAllMessageSnippets() {
         if (friendTab.getAttribute('data-friend-id')) {
             const friendID = friendTab.getAttribute('data-friend-id');
             const searchOption = `searchCreatorID=[${userID},${friendID}]&searchRecipientID=[${userID},${friendID}]&searchDateTo=${now}&searchLimit=1`;
-            const resultOption = `resultMessageID=true&resultCreatorID=true&resultRecipientID=true&resultMessageText=true&resultFilePath=true&resultFileType=true&resultIsRead=true`;
+            const resultOption = `resultMessageID=true&resultCreatorID=true&resultRecipientID=true&resultMessageText=true&resultFilePath=true&resultFileType=true&resultCreateDate=true&resultIsRead=true`;
             const queryString = `${searchOption}&${resultOption}`;
 
             fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/messages/option?${queryString}`)
@@ -156,7 +220,6 @@ function renderAllMessageSnippets() {
                     // Returned data will be an array containing one object (message data)
                     if (data.messages[0]) {
                         const message = data.messages[0];
-                        console.log(message);
                         renderMessageSnippet(friendTab, message);
                     }
                 });
@@ -187,9 +250,10 @@ function renderMessage(msgID, msgCreator, msgAvatarSrc, msgText, msgImageSrc, ms
     }
 
     if (msgAvatarSrc) {
-        avatarElement = `<div class="flex-shrink-0 self-start"><img src="${msgAvatarSrc}" class="mr-2 w-7 h-7 shadow-md rounded-full"></div>`;
+        avatarElement = `<div class="flex-shrink-0 self-start"><img src="${msgAvatarSrc}" class="mr-2 w-7 h-7 shadow-md rounded-full" alt="avatar"></div>`;
     }
 
+    // Message text
     if (msgText && msgText.length > 0) {
         let textColor = '';
         let bgColor = '';
@@ -211,10 +275,35 @@ function renderMessage(msgID, msgCreator, msgAvatarSrc, msgText, msgImageSrc, ms
         textElement = `<div class="message-body flex-shrink-0 ${alignSelf} rounded-lg px-2 py-1 ${bgColor} break-words text-justify ${textColor}">${msgText}</div>`;
     }
 
+    // Message image
     if (msgImageSrc) {
-        imgElement = `<img src="${msgImageSrc}" alt="image" class="rounded-lg">`;
+        // View large image on click event
+        const imgOnclick = `
+            // Set messageID to fileMessageViewer
+            let fileMessageViewer = document.querySelector('#file-message-viewer');
+            fileMessageViewer.setAttribute('data-message-id', '${msgID}');
+
+            const friendID = document.querySelector('#message-recipient-name-bar').getAttribute('data-friend-id');
+            fileMessageViewer.setAttribute('data-friend-id', friendID);
+
+            // Set imageSrc to image source attribute
+            let fileMessageViewerImage = fileMessageViewer.querySelector('img');
+            fileMessageViewerImage.setAttribute('src', '${msgImageSrc}');
+
+            // Make file message viewer visible (unhide)
+            let fileMessageViewerWrapper = document.querySelector('#file-message-viewer-wrapper');
+            if (fileMessageViewerWrapper.classList.contains('hidden')) {
+                fileMessageViewerWrapper.classList.remove('hidden');
+
+                // This provides functionality for pressing left and right key when viewing file
+                fileMessageViewerWrapper.focus();
+            }
+        `;
+
+        imgElement = `<img src="${msgImageSrc}" onclick="${imgOnclick}" alt="image" class="cursor-pointer rounded-lg">`;
     }
 
+    // Message timestamp
     if (msgTimestamp) {
         let dateNow = new Date(Date.now());
         let date = dateNow.getDate() >= 10 ? dateNow.getDate() : ('0' + dateNow.getDate());
@@ -376,11 +465,12 @@ function renderMessagesBox(friendsNavTab, messages) {
 */
 function syncMessages(messagesArray1, messagesArray2) {
     if (Array.isArray(messagesArray1) && Array.isArray(messagesArray2)) {
+        // Filter message with null or undefined values
         const filterObject = (object) => {
             let result = {};
 
             for (let key of Object.keys(object)) {
-                if (object.hasOwnProperty(key) && object[key]) {
+                if (object.hasOwnProperty(key) && (object[key] || (key == 'isRead' && typeof object[key] == 'boolean'))) {
                     result[key] = object[key];
                 }
             }
@@ -388,11 +478,12 @@ function syncMessages(messagesArray1, messagesArray2) {
             return result;
         };
 
+        // Check if message has valid properties
         const checkMessageInfo = (message) => {
             if (message) {
                 let legit = true;
 
-                if (!message.creatorID || !message.recipientID || (!message.messageText || !message.filePath) || !message.createDate || (message.isRead != true || message.isRead != false)) {
+                if (!message.creatorID || !message.recipientID || (!message.messageText && !message.filePath) || !message.createDate || (message.isRead != true && message.isRead != false)) {
                     legit = false;
                 }
 
@@ -412,6 +503,7 @@ function syncMessages(messagesArray1, messagesArray2) {
             if (messagesArray1[index1].messageID == messagesArray2[index2].messageID) {
                 const message1 = filterObject(messagesArray1[index1]);
                 const message2 = filterObject(messagesArray2[index2]);
+
                 if (Object.keys(message1).length > Object.keys(message2).length) {
                     messagesResult.push(message1);
                 }
@@ -421,12 +513,16 @@ function syncMessages(messagesArray1, messagesArray2) {
                 }
 
                 if (Object.keys(message1).length == Object.keys(message2).length) {
-                    if (checkMessageInfo(message1)) {
+                    if (checkMessageInfo(message1) && !checkMessageInfo(message2)) {
                         messagesResult.push(message1);
+                    } 
+                    
+                    else if (!checkMessageInfo(message1) && checkMessageInfo(message2)) {
+                        messagesResult.push(message2);
                     }
 
-                    if (checkMessageInfo(message2)) {
-                        messagesResult.push(message2);
+                    else {
+                        messagesResult.push(message1);
                     }
                 }
 
@@ -466,26 +562,135 @@ function syncMessages(messagesArray1, messagesArray2) {
 
 
 /*
-    Create a new notification
-    @param {object} - notification: {
-        icon:
-        title:
-        body:
+    Add new message to conversation in sessionStorage
+
+    @param {object} newMessage: {
+        messageID:              {number}
+        creatorID:              {number}
+        recipientID:            {number}
+        recipientGroupID:       {number}
+        messageText:            {string}
+        filePath:               {string}
+        fileType:               {string}
+        isRead:                 {boolean}
+        createDate:             {string}
     }
+
+    @param {array} newMessage: [
+        {object} - {
+            messageID:              {number}
+            creatorID:              {number}
+            recipientID:            {number}
+            recipientGroupID:       {number}
+            messageText:            {string}
+            filePath:               {string}
+            fileType:               {string}
+            isRead:                 {boolean}
+            createDate:             {string}
+        },
+        ...
+    ]
+
+    @param {number | string} friendIdKey - to tell which key in sessionStorage to store message data
 */
-function notifyNewMessage(senderID, notification) {
-    let options = {
-        body: notification.body,
-        icon: notification.icon
-    }
+function addMessageToSessionStorage(newMessage, friendIdKey) {
+    if (newMessage) {
+        const sessionStorageLimit = 1024 * 1024 * 5;    // 5 MB
+        const remainingSpace = sessionStorageLimit - JSON.stringify(sessionStorage).length;
+        const newMessageLength = JSON.stringify(newMessage).length;
 
-    let newNotification = new Notification(notification.title, options);
-    
-    newNotification.onclick = () => {
-        const receiveMsgAudio = new Audio('/audio/new-message-notification.mp3');
-        receiveMsgAudio.play();
 
-        location.href = `/home?notification=true&senderID=${senderID}`;
+        /* Get friendID */
+        let friendID;
+
+        if (!Array.isArray(newMessage)) {
+            if (newMessage.creatorID != userID) {
+                friendID = newMessage.creatorID;
+            } else {
+                friendID = newMessage.recipientID;
+            }
+        }
+
+        if (Array.isArray(newMessage) && friendIdKey) {
+            friendID = friendIdKey;
+        }
+
+
+        // If remaining space of session storage is not enough, delete other conversation with shortest length
+        if (newMessageLength > remainingSpace) {
+            // Delete other conversation until there is enough space for new message
+            while (newMessageLength > remainingSpace) {
+                let minConversationLength = Number.MAX_SAFE_INTEGER;
+                let minConversationKey = null;
+
+                for (let key of Object.keys(sessionStorage)) {
+                    const conversation = sessionStorage.getItem(key);
+                    const conversationLength = conversation.length;
+
+                    // Only conversation with other friends is valid to be deleted
+                    if (conversationLength < minConversationLength && !key.includes(friendID)) {
+                        minConversationLength = conversationLength;
+                        minConversationKey = key;
+                    }
+                }
+
+                // Remove conversation with shortest length
+                sessionStorage.removeItem(minConversationKey)
+            }
+        }
+
+        // Add new message to conversation in sessionStorage
+        if (sessionStorage.hasOwnProperty(`friend${friendID}`)) {
+            let existingMessages = JSON.parse(sessionStorage.getItem(`friend${friendID}`));
+            let newMessages;
+
+            if (!Array.isArray(newMessage)) {
+                newMessages = syncMessages([newMessage], existingMessages);
+            }
+
+            if (Array.isArray(newMessage)) {
+                newMessages = syncMessages(newMessage, existingMessages);
+            }
+            
+            newMessages = JSON.stringify(newMessages);
+            sessionStorage.setItem(`friend${friendID}`, newMessages);
+        }
+
+        // Initialize a new array of messages if messages are not found in sessionStorage
+        if (!sessionStorage.hasOwnProperty(`friend${friendID}`)) {
+            const dateNow = new Date(Date.now());
+            const now = `${dateNow.getDate()}-${dateNow.getMonth() + 1}-${dateNow.getFullYear()} ${dateNow.getHours()}:${dateNow.getMinutes()}:${dateNow.getSeconds()}`;
+
+            const searchOption = `searchCreatorID=[${userID},${friendID}]&searchRecipientID=[${userID},${friendID}]&searchDateTo=${now}&searchLimit=20`;
+            const resultOption = `resultMessageID=true&resultCreatorID=true&resultRecipientID=true&resultMessageText=true&resultFilePath=true&resultFileType=true&resultCreateDate=true&resultIsRead=true`;
+            const queryString = `${searchOption}&${resultOption}`;
+
+            fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/messages/option?${queryString}`)
+                .then(response => response.json())
+                .then(data => {
+                    /*
+                        Array of messages ordered by descending create date
+                        messages[0]          --> Lastest
+                        messages[length - 1] --> Oldest
+                    */
+
+                    let messages = data.messages;
+                    console.log('Newly fetched messages:', messages);
+
+                    let newMessages;
+
+                    if (!Array.isArray(newMessage)) {
+                        newMessages = syncMessages([newMessage], messages);
+                    }
+
+                    if (Array.isArray(newMessage)) {
+                        newMessages = syncMessages(newMessage, messages);
+                    }                    
+
+                    newMessages = JSON.stringify(newMessages);
+                    sessionStorage.setItem(`friend${friendID}`, newMessages);
+                });
+        }
     }
 }
 
@@ -577,7 +782,7 @@ export {
     renderMessage,
     renderMessagesBox,
     syncMessages,
-    notifyNewMessage,
+    addMessageToSessionStorage,
     readFileAsDataURLAsync,
     readFileAsArrayBufferAsync,
     previewFiles 
