@@ -1,6 +1,9 @@
 import CONFIG from './config.js';
 
 
+sessionStorage.clear();
+
+
 let registerForm = document.querySelector('form');
 registerForm.onsubmit = () => {
     let checkCorrect = true;
@@ -8,25 +11,30 @@ registerForm.onsubmit = () => {
     const checkFirstName = checkFullName('first name');
     const checkLastName = checkFullName('last name');
     if (!checkFirstName || !checkLastName) {
+        console.log('name', checkCorrect);
         checkCorrect = false;
     }
 
-    if (!checkEmail()) {
+    if (!checkEmail() || !validEmail) {
+        console.log(checkEmail(), validEmail);
+        console.log('email', checkCorrect);
         checkCorrect = false;
     }
 
     const emailWarning = document.querySelector('#email-warning');
     if (!checkPassword() || emailWarning.textContent == '* Tài khoản đã tồn tại') {
+        console.log('password', checkCorrect);
         checkCorrect = false;
     }
 
     if (!avatarIsImage()) {
+        console.log('avatar', checkCorrect);
         checkCorrect = false;
         let avatarWarning = document.querySelector('#avatar-warning');
         avatarWarning.style.visibility = 'visible';
         avatarWarning.innerHTML = '* Ảnh đại diện không được trống';
     }
-
+    console.log(checkCorrect);
     if (checkCorrect) {
         return true;
     } else {
@@ -52,6 +60,8 @@ function checkFullName(option) {
         /^([(a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựýỳỵỷỹ)\s]{1,20})$/g;
 
     if (option == 'first name') {
+        firstName.value = firstName.value.trim();
+
         let firstNameWarning = document.querySelector('#first-name-warning');
         if (firstName.value.match(fullnamePattern)) {
             firstNameWarning.style.visibility = 'hidden';
@@ -66,6 +76,8 @@ function checkFullName(option) {
     }
 
     if (option == 'last name') {
+        lastName.value = lastName.value.trim();
+
         let lastNameWarning = document.querySelector('#last-name-warning');
         if (lastName.value.match(fullnamePattern)) {
             lastNameWarning.style.visibility = 'hidden';
@@ -83,50 +95,65 @@ function checkFullName(option) {
 
 
 let email = document.querySelector('#email');
+let validEmail = false;
 email.onchange = checkEmail;
 function checkEmail() {
     let emailPattern = /^\b[\w\.-]+@[\w\.-]+\.\w{1,}\b$/g;
     let emailWarning = document.querySelector('#email-warning');
 
+    // Match pattern
     if (email.value.match(emailPattern)) {
         fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/register/email?email=${email.value}`)
-        .then(response => {
-            response.json()
+            .then(response => response.json())
             .then(data => {
                 // Account is already existed
                 if (data.status == 'existed') {
                     emailWarning.style.visibility = 'visible';
                     emailWarning.innerHTML = '* Tài khoản đã tồn tại';
+                    
+                    validEmail = false;
                 } 
                 
                 // Account is new
                 else if (data.status == 'OK') {
                     emailWarning.innerHTML = 'OK';
                     emailWarning.style.visibility = 'hidden';
+
+                    validEmail = true;
+                }
+
+                // Account is being reviewed
+                else if (data.status == 'requesting') {
+                    emailWarning.style.visibility = 'visible';
+                    emailWarning.innerHTML = '* Tài khoản đang chờ duyệt';
+
+                    validEmail = false;
                 }
 
                 // Message sent from server if error found
                 else if (data.msg) {
                     console.log(data.msg);
-                    return false;
+
+                    validEmail = false;
                 }
             })
-        });
-
-        return true;
     }
 
-    else if (email.value.length == 0) {
-        emailWarning.style.visibility = 'visible';
-        emailWarning.innerHTML = '* Email không được trống';
-        return false;
-    }
-    
-    else {
+    // Mismatch pattern
+    if (!email.value.match(emailPattern)) {
         emailWarning.style.visibility = 'visible';
         emailWarning.innerHTML = '* Email không hợp lệ';
         return false;
     }
+
+    // Length is zero
+    if (email.value.length == 0) {
+        emailWarning.style.visibility = 'visible';
+        emailWarning.innerHTML = '* Email không được trống';
+        return false;
+    }
+
+    return true;
 }
 
 
@@ -147,7 +174,6 @@ function checkPassword() {
     let passwordVal = password.value;
 
     let minLetters = false;
-    let maxLetters = false;
     let capLetter = false;
     let normalLetter = false;
     let numericLetter = false;
@@ -196,7 +222,7 @@ function checkPassword() {
         numericLettersWarn.classList.remove('text-blue-500');
     }
 
-    if (minLetters && maxLetters && capLetter && normalLetter && numericLetter) {
+    if (minLetters && capLetter && normalLetter && numericLetter) {
         return true;
     } else {
         return false;
@@ -245,6 +271,21 @@ avatarInput.onchange = (fileEvent) => {
 
 let resetButton = document.querySelector('input[type="reset"]');
 resetButton.onclick = () => {
+    let firstNameWarning = document.querySelector('#first-name-warning');
+    firstNameWarning.style.visibility = 'hidden';
+
+    let lastNameWarning = document.querySelector('#last-name-warning');
+    lastNameWarning.style.visibility = 'hidden';
+
+    let emailWarning = document.querySelector('#email-warning');
+    emailWarning.style.visibility = 'hidden';
+    
+    password.value = '';
+    checkPassword();
+    
+    let avatarWarning = document.querySelector('#avatar-warning');
+    avatarWarning.style.visibility = 'hidden';    
+
     let previewImg = document.querySelector('#avatar-preview-img');
     if (previewImg) {
         previewImg.setAttribute('src', null);
