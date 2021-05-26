@@ -1,6 +1,7 @@
 database/ChatApp.sql
 database/ChatApp (ERD).drawio
 database/ChatApp (ERD with datatype).drawio
+node_modules/
 public/js/config.js
 log/
 .vscode/
