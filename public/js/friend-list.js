@@ -1,5 +1,6 @@
 import CONFIG from './config.js';
-import { notifyNewMessage, syncMessages } from './home-functions.js'
+import { renderFriendCard, notifyNewMessage } from './friend-list-functions.js'
+import { syncMessages, addMessageToSessionStorage } from './home-functions.js'
 
 
 let socket = io();
@@ -69,6 +70,7 @@ socket.on('message', (messageData) => {
     const avatarSrc = activeUsers[senderID].userAvatarSrc;
     const messageText = messageData.messageText.replace(/[\\]/g, '').trim();
 
+    // Notify new message if notification permission is 'granted'
     if (senderID && Notification.permission === 'granted') {
         notification.icon = avatarSrc;
         
@@ -83,216 +85,26 @@ socket.on('message', (messageData) => {
         notifyNewMessage(senderID, notification);
     }
 
-    // Store new message to localStorage
-    navigator.storage.estimate()
-        .then(data => {
-            const newMessage = {
-                messageID: Number.parseInt(messageData.messageID),
-                creatorID: Number.parseInt(messageData.senderID),
-                recipientID: Number.parseInt(messageData.recipientID),
-                recipientGroupID: Number.parseInt(messageData.recipientGroupID),
-                messageText: messageData.messageText,
-                filePath: messageData.file,
-                fileType: messageData.fileType,
-                isRead: messageData.isRead,
-                createDate: messageData.createDate
-            }
+    // Store new message to sessionStorage
+    {
+        const newMessage = {
+            messageID: Number.parseInt(messageData.messageID),
+            creatorID: Number.parseInt(messageData.senderID),
+            recipientID: Number.parseInt(messageData.recipientID),
+            recipientGroupID: Number.parseInt(messageData.recipientGroupID),
+            messageText: messageData.messageText,
+            filePath: messageData.file,
+            fileType: messageData.fileType,
+            isRead: messageData.isRead,
+            createDate: messageData.createDate
+        }
 
-            let friendID;
-            if (messageData.senderID != userID) {
-                friendID = messageData.senderID;
-            } else {
-                friendID = messageData.recipientID;
-            }
-
-            if (data.usage < data.quota) {
-                // Add new message to the beginning of the messages array
-                if (localStorage.hasOwnProperty(`friend${friendID}`)) {
-                    let existingMessages = JSON.parse(localStorage.getItem(`friend${friendID}`));
-                    let newMessages = syncMessages([newMessage], existingMessages);
-                    localStorage.setItem(`friend${friendID}`, JSON.stringify(newMessages));
-                }
-
-                // Initialize a new array of messages if messages are not found in localStorage
-                if (!localStorage.hasOwnProperty(`friend${friendID}`)) {
-                    const dateNow = new Date(Date.now());
-                    const now = `${dateNow.getDate()}-${dateNow.getMonth() + 1}-${dateNow.getFullYear()} ${dateNow.getHours()}:${dateNow.getMinutes()}:${dateNow.getSeconds()}`;
-
-                    const searchOption = `searchCreatorID=[${userID},${friendID}]&searchRecipientID=[${userID},${friendID}]&searchDateTo=${now}&searchLimit=20`;
-                    const resultOption = `resultMessageID=true&resultCreatorID=true&resultRecipientID=true&resultMessageText=true&resultFilePath=true&resultFileType=true&resultCreateDate=true&resultIsRead=true`;
-                    const queryString = `${searchOption}&${resultOption}`;
-
-                    fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/messages/option?${queryString}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            /*
-                                Array of messages ordered by descending create date
-                                messages[0]          --> Lastest
-                                messages[length - 1] --> Oldest
-                            */
-
-                            let messages = data.messages;
-
-                            messages = JSON.stringify(messages);
-                            localStorage.setItem(`friend${friendID}`, messages);
-                        })
-                }
-            }
-        })
+        addMessageToSessionStorage(newMessage);
+    }
 });
 
 
-function renderFriendCard(friendID, friendAvatarSrc, friendFullName, cardType) {
-    let cardFriendInfo =
-        `<div class="flex items-center">
-            <img src="${friendAvatarSrc}" alt="avatar"
-                class="shadow-md rounded-full h-11 w-11 mr-2">
-            <span id="friend-fullname" class="font-semibold text-lg">
-                ${friendFullName}
-            </span>
-        </div>`
 
-    let cardFunctions = '';
-
-    // Nonfriend
-    if (cardType == 'nonfriend') {
-        let onclick = 
-            `fetch('${CONFIG.serverAddress}:${CONFIG.serverPort}/api/friend-list/add-friend/${friendID}', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.msg == 'success') {
-                        location.reload();
-                    } else if (data.msg == 'error') {
-                        console.log('Error adding friend');
-                    }
-                });
-            `;
-
-        cardFunctions =
-            `<div class="flex items-center">
-                <button 
-                    class="
-                        mx-1 px-2 py-1 rounded-lg bg-blue-500 shadow-md
-                        font-semibold text-white text-center
-                        focus:outline-none
-                        transform hover:scale-105
-                        transition duration-75"
-                    onclick="${onclick}">
-                    Thêm bạn
-                </button>
-            </div>`;
-    }
-
-    // A friend
-    if (cardType == 'friend') {
-        let onclick =
-            `fetch('${CONFIG.serverAddress}:${CONFIG.serverPort}/api/friend-list/unfriend/${friendID}', { method: 'DELETE' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.msg == 'success') {
-                        location.reload();
-                    } else if (data.msg == 'error') {
-                        console.log('Error unfriend');
-                    }
-                });
-            `;
-
-        cardFunctions =
-            `<div class="flex items-center">
-                <button 
-                    class="
-                        mx-1 px-2 py-1 rounded-lg bg-gray-500 shadow-md
-                        font-semibold text-white text-center
-                        focus:outline-none
-                        transform hover:scale-105
-                        transition duration-75"
-                    onclick="${onclick}">
-                    Hủy kết bạn
-                </button>
-            </div>`;
-    }
-
-    // A friend request
-    if (cardType == 'request from') {
-        let accept = `fetch('${CONFIG.serverAddress}:${CONFIG.serverPort}/api/friend-list/accept/${friendID}', { method: 'PUT' })`;
-
-        let decline = `fetch('${CONFIG.serverAddress}:${CONFIG.serverPort}/api/friend-list/decline/${friendID}', { method: 'DELETE' })`;
-
-        let onclick = 
-            `.then(response => response.json())
-            .then(data => {
-                if (data.msg == 'success') {
-                    location.reload();
-                } else if (data.msg == 'error') {
-                    console.log('Error handling friend request');
-                }
-            });
-            `;
-
-        cardFunctions = 
-            `<div class="flex items-center">
-                <button 
-                    class="
-                        mx-1 px-2 py-1 rounded-lg bg-blue-500 shadow-md
-                        font-semibold text-white text-center
-                        focus:outline-none
-                        transform hover:scale-105
-                        transition duration-75"
-                    onclick="${accept}${onclick}">
-                    Chấp nhận
-                </button>
-                <button 
-                    class="
-                        mx-1 px-2 py-1 rounded-lg bg-white shadow-md
-                        font-semibold text-center
-                        focus:outline-none
-                        transform hover:scale-105
-                        transition duration-75"
-                    onclick="${decline}${onclick}">
-                    Hủy
-                </button>
-            </div>`;
-}
-
-    // A sent friend request
-    if (cardType == 'request to') {
-        let onclick =
-            `fetch('${CONFIG.serverAddress}:${CONFIG.serverPort}/api/friend-list/unfriend/${friendID}', { method: 'DELETE' })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.msg == 'success') {
-                        location.reload();
-                    } else if (data.msg == 'error') {
-                        console.log('Error unfriend');
-                    }
-                });
-            `;
-
-        cardFunctions =
-            `<div class="flex items-center">
-                <button 
-                    class="
-                        mx-1 px-2 py-1 rounded-lg bg-white shadow-md
-                        font-semibold text-center
-                        focus:outline-none
-                        transform hover:scale-105
-                        transition duration-75"
-                    onclick="${onclick}">
-                    Đã gửi yêu cầu
-                </button>
-            </div>`;
-    }
-
-    const finalCard =
-        `<div data-friend-id=${friendID} data-card-type="${cardType}"
-            class="friend-card flex justify-between items-center border border-gray-400 mb-4 mx-auto px-3 py-2 shadow-lg rounded-lg
-            bg-gray-200">
-            ${cardFriendInfo}
-            ${cardFunctions}
-        </div>`;
-
-    return finalCard;
-}
 
 
 const userInfo = document.querySelector('#user-info');
@@ -400,30 +212,49 @@ let searchInput = document.querySelector('#search-friend-bar > input');
 searchFriendBar.onsubmit = (event) => {
     let searchText = searchInput.value;
     let invalidPattern =
-        /[^a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựýỳỵỷỹ\s]/g;
+        /[^a-zA-ZÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠàáâãèéêìíòóôõùúăđĩũơƯĂẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼỀỀỂưăạảấầẩẫậắằẳẵặẹẻẽềềểỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪễệỉịọỏốồổỗộớờởỡợụủứừỬỮỰỲỴÝỶỸửữựýỳỵỷỹ\s0-9]/g;
     searchText = searchText.replace(invalidPattern, '');
     searchText = searchText.trim();
 
     if (searchText.length > 0) {
+        let friendID = null;
         let lastName = '';
         let firstName = '';
+
+        // FriendID searching
+        const tempFriendID = Number.parseInt(searchText);
+        if (tempFriendID && tempFriendID != userID) {
+            friendID = Number.parseInt(searchText);
+        }
+
+        // Mulitple words searching (>= 2 words)
         if (searchText.includes(' ')) {
             lastName = searchText.split(' ')[0];
             firstName = searchText.split(' ')[1];
-        } else {
+        }
+        
+        // One word searching
+        if (!searchText.includes(' ') && !tempFriendID) {
             lastName = searchText;
             firstName = searchText;
         }
 
-        const searchOption = `searchFirstName=${firstName}&searchLastName=${lastName}`;
+
+        let searchOption = '';
+        if (firstName && lastName) {
+            searchOption = `searchFirstName=${firstName}&searchLastName=${lastName}`;
+        } else if (friendID) {
+            searchOption = `searchFriendID=${friendID}`;
+        } else {
+            return false;
+        }
+        
         const resultOption = `resultFriendID=true&resultFirstName=true&resultLastName=true&resultAvatar=true&resultFriendStatus=true&resultActionUserID=true`;
         const queryString = `${searchOption}&${resultOption}`;
 
         fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/friend-list/option?${queryString}`)
             .then((response) => response.json())
             .then(data => {
-                console.log(data);
-
                 // Hide all friends and display search results
                 if (friendListWrapper) {
                     friendListWrapper.style.display = 'none';
