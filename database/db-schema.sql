@@ -17,6 +17,20 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
+-- Name: uuid-ossp; Type: EXTENSION; Schema: -; Owner: 
+--
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION "uuid-ossp"; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UUIDs)';
+
+
+--
 -- Name: convertvntoeng(text); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -43,6 +57,57 @@ ALTER FUNCTION public.convertvntoeng(chars text) OWNER TO postgres;
 SET default_tablespace = '';
 
 SET default_with_oids = false;
+
+--
+-- Name: accountregistrationrequest; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.accountregistrationrequest (
+    requestid bigint NOT NULL,
+    email character varying(128) NOT NULL,
+    requestpassword character varying(128) NOT NULL,
+    firstname character varying(20) NOT NULL,
+    lastname character varying(20) NOT NULL,
+    requesttime timestamp with time zone NOT NULL,
+    avatar text NOT NULL
+);
+
+
+ALTER TABLE public.accountregistrationrequest OWNER TO postgres;
+
+--
+-- Name: accountregistrationrequest_requestid_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.accountregistrationrequest_requestid_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.accountregistrationrequest_requestid_seq OWNER TO postgres;
+
+--
+-- Name: accountregistrationrequest_requestid_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.accountregistrationrequest_requestid_seq OWNED BY public.accountregistrationrequest.requestid;
+
+
+--
+-- Name: adminaccount; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.adminaccount (
+    adminid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+    adminname character varying(128) NOT NULL,
+    adminpassword character varying(128) NOT NULL
+);
+
+
+ALTER TABLE public.adminaccount OWNER TO postgres;
 
 --
 -- Name: fileinfo; Type: TABLE; Schema: public; Owner: postgres
@@ -246,6 +311,13 @@ CREATE TABLE public.userinfo (
 ALTER TABLE public.userinfo OWNER TO postgres;
 
 --
+-- Name: accountregistrationrequest requestid; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.accountregistrationrequest ALTER COLUMN requestid SET DEFAULT nextval('public.accountregistrationrequest_requestid_seq'::regclass);
+
+
+--
 -- Name: fileinfo fileid; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -271,6 +343,38 @@ ALTER TABLE ONLY public.messageinfo ALTER COLUMN messageid SET DEFAULT nextval('
 --
 
 ALTER TABLE ONLY public.useraccount ALTER COLUMN userid SET DEFAULT nextval('public.useraccount_userid_seq'::regclass);
+
+
+--
+-- Name: accountregistrationrequest accountregistrationrequest_email_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.accountregistrationrequest
+    ADD CONSTRAINT accountregistrationrequest_email_key UNIQUE (email);
+
+
+--
+-- Name: accountregistrationrequest accountregistrationrequest_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.accountregistrationrequest
+    ADD CONSTRAINT accountregistrationrequest_pkey PRIMARY KEY (requestid);
+
+
+--
+-- Name: adminaccount adminaccount_adminname_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.adminaccount
+    ADD CONSTRAINT adminaccount_adminname_key UNIQUE (adminname);
+
+
+--
+-- Name: adminaccount adminaccount_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.adminaccount
+    ADD CONSTRAINT adminaccount_pkey PRIMARY KEY (adminid);
 
 
 --
