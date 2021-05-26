@@ -1,3 +1,5 @@
+sessionStorage.clear();
+
 let loginForm = document.querySelector('form');
 loginForm.onsubmit = () => {
     let checkCorrect = true;
@@ -29,19 +31,14 @@ email.onkeydown = () => {
 }
 
 function checkEmail() {
-    let emailPattern = /\b[\w\.-]+@[\w\.-]+\.\w{2,4}\b/;
     let emailWarning = document.querySelector('#email-warning');
 
-    if (email.value.match(emailPattern)) {
+    if (email.value.length > 0) {
         emailWarning.style.visibility = 'hidden';
         return true;
     } else {
         emailWarning.style.visibility = 'visible';
-        if (email.value.length == 0) {
-            emailWarning.innerHTML = '* Email không được trống';
-        } else {
-            emailWarning.innerHTML = '* Email nhập không hợp lệ';
-        }
+        emailWarning.innerHTML = '* Email không được trống';
         return false;
     }
 }
