@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/styles.css">
+    <title>Quản lý đăng ký</title>
+
+    <style>
+        body {
+            height: 98vh;
+        }
+
+        #registration-requests::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <% const rootPath = '../'; %>
+    <%- include(rootPath + 'partials/admin-navbar.ejs') %>
+
+    <div class="mt-6 mx-auto flex justify-start w-9/12">
+        <div id="registration-mode" class="w-max">
+            <div class="mb-2 text-center text-xl font-bold">Chế độ duyệt đăng ký:</div>
+            <button id="verify-email-mode" 
+                    class="
+                        mx-1 px-2 py-1
+                        rounded-lg border-2 border-black shadow-lg
+                        font-semibold text-center
+                        focus:outline-none
+                        transition duration-100
+                    ">
+                Xác thực email
+            </button>
+            <button id="manual-mode" 
+                    class="
+                        mx-1 px-2 py-1
+                        rounded-lg border-2 border-black shadow-lg
+                        font-semibold text-center
+                        focus:outline-none
+                        transition duration-100
+                    ">
+                Thủ công
+            </button>
+        </div>
+    </div>
+
+    <div id="registration-request-wrapper" class="mt-10 mx-auto flex flex-col w-9/12 h-4/6 clear-both">
+        <div class="mx-auto w-max mb-6 text-2xl text-center font-bold">Tài khoản đang chờ duyệt</div>
+        <div class="flex flex-row rounded-md shadow-md border-2 border-black py-2 w-full justify-evenly text-xl text-center font-bold">
+            <div class="w-2/12">Ảnh đại diện</div>
+            <div class="w-4/12">Họ tên</div>
+            <div class="w-3/12">Thời gian</div>
+            <div class="w-3/12">Duyệt</div>
+        </div>
+        <div id="registration-requests" class="w-full h-full overflow-auto text-center">
+            
+        </div>
+    </div>
+    <div id="paging-wrapper" class="flex flex-rows justify-center items-center">
+    </div>
+
+    <script type="module" src="/js/config.js"></script>
+    <script type="module" src="/admin-views/manage-registration.js"></script>
+</body>
+
+</html>
