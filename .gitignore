@@ -1,6 +1,8 @@
 database/ChatApp.sql
-database/ChatApp.drawio
+database/ChatApp (ERD).drawio
+database/ChatApp (ERD with datatype).drawio
 public/js/config.js
+log/
 .vscode/
 
 /.env
@@ -8,3 +10,6 @@ public/js/config.js
 /postgre-client-test.js
 /test.js
 /Users.txt
+/chatapp.auth.noreply.txt
+/server.key
+/server.cert
