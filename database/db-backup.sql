@@ -17,6 +17,20 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
+-- Name: uuid-ossp; Type: EXTENSION; Schema: -; Owner: 
+--
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION "uuid-ossp"; Type: COMMENT; Schema: -; Owner: 
+--
+
+COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UUIDs)';
+
+
+--
 -- Name: convertvntoeng(text); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -43,6 +57,57 @@ ALTER FUNCTION public.convertvntoeng(chars text) OWNER TO postgres;
 SET default_tablespace = '';
 
 SET default_with_oids = false;
+
+--
+-- Name: accountregistrationrequest; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.accountregistrationrequest (
+    requestid bigint NOT NULL,
+    email character varying(128) NOT NULL,
+    requestpassword character varying(128) NOT NULL,
+    firstname character varying(20) NOT NULL,
+    lastname character varying(20) NOT NULL,
+    requesttime timestamp with time zone NOT NULL,
+    avatar text NOT NULL
+);
+
+
+ALTER TABLE public.accountregistrationrequest OWNER TO postgres;
+
+--
+-- Name: accountregistrationrequest_requestid_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.accountregistrationrequest_requestid_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.accountregistrationrequest_requestid_seq OWNER TO postgres;
+
+--
+-- Name: accountregistrationrequest_requestid_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.accountregistrationrequest_requestid_seq OWNED BY public.accountregistrationrequest.requestid;
+
+
+--
+-- Name: adminaccount; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.adminaccount (
+    adminid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+    adminname character varying(128) NOT NULL,
+    adminpassword character varying(128) NOT NULL
+);
+
+
+ALTER TABLE public.adminaccount OWNER TO postgres;
 
 --
 -- Name: fileinfo; Type: TABLE; Schema: public; Owner: postgres
@@ -246,6 +311,13 @@ CREATE TABLE public.userinfo (
 ALTER TABLE public.userinfo OWNER TO postgres;
 
 --
+-- Name: accountregistrationrequest requestid; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.accountregistrationrequest ALTER COLUMN requestid SET DEFAULT nextval('public.accountregistrationrequest_requestid_seq'::regclass);
+
+
+--
 -- Name: fileinfo fileid; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -271,6 +343,23 @@ ALTER TABLE ONLY public.messageinfo ALTER COLUMN messageid SET DEFAULT nextval('
 --
 
 ALTER TABLE ONLY public.useraccount ALTER COLUMN userid SET DEFAULT nextval('public.useraccount_userid_seq'::regclass);
+
+
+--
+-- Data for Name: accountregistrationrequest; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.accountregistrationrequest (requestid, email, requestpassword, firstname, lastname, requesttime, avatar) FROM stdin;
+\.
+
+
+--
+-- Data for Name: adminaccount; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.adminaccount (adminid, adminname, adminpassword) FROM stdin;
+02092c23-f695-4a4d-b4c5-178bb64b2b64	ty-admin	92c32183853cb1049806137a090d20461b3182438847f1a8c7c66a9a5f017235
+\.
 
 
 --
@@ -303,6 +392,7 @@ COPY public.fileinfo (fileid, filepath, filetype) FROM stdin;
 63	/imgs/user-imgs/img_321_1619606217479.jpg	jpg
 65	/imgs/user-imgs/img_325_1619664854425.jpg	jpg
 67	/imgs/user-imgs/img_327_1619665176859.jpg	jpg
+81	/imgs/user-imgs/img_402_1620836608214.jpg	jpg
 \.
 
 
@@ -313,15 +403,16 @@ COPY public.fileinfo (fileid, filepath, filetype) FROM stdin;
 COPY public.friendship (userid1, userid2, friendstatus, actionuserid) FROM stdin;
 45	34	request	45
 45	33	friend	45
-32	45	friend	32
 27	45	request	27
 31	34	friend	31
 32	27	friend	32
 28	31	friend	28
 28	30	friend	28
 28	45	friend	28
-27	30	friend	27
 30	31	friend	30
+45	32	friend	45
+34	28	request	34
+27	30	friend	27
 31	27	friend	31
 27	28	friend	27
 31	32	friend	31
@@ -509,9 +600,12 @@ COPY public.messageinfo (messageid, creatorid, messagetext, fileid, createdate) 
 252	45	\N	4	2021-04-26 22:13:38+07
 253	28	\N	5	2021-04-26 22:16:04+07
 254	45	\N	6	2021-04-26 22:17:55+07
+344	27	hey hey	\N	2021-05-03 21:50:23+07
+345	34	aha	\N	2021-05-05 22:48:08+07
 258	28	\N	10	2021-04-26 22:22:13+07
 313	27	alo, yeah yeah	\N	2021-04-28 16:44:34+07
 314	27	yeah yeah, alo	\N	2021-04-28 16:53:29+07
+402	31	\N	81	2021-05-12 23:23:28+07
 284	28	I got some candies for u	31	2021-04-27 11:09:56+07
 285	28	\N	32	2021-04-27 11:09:56+07
 286	28	\N	33	2021-04-27 11:09:56+07
@@ -523,17 +617,29 @@ COPY public.messageinfo (messageid, creatorid, messagetext, fileid, createdate) 
 272	28	hmmm..., looks good!	\N	2021-04-27 10:30:59+07
 273	45	\N	20	2021-04-27 10:32:11+07
 274	45	This one is also from that brand	21	2021-04-27 10:32:43+07
+346	31	hah hah??	\N	2021-05-05 23:02:57+07
+347	28	ei yo	\N	2021-05-05 23:11:11+07
 293	31	How 'bout this?	39	2021-04-27 16:27:00+07
 320	27	\N	61	2021-04-28 17:36:55+07
 319	27	U like these??	62	2021-04-28 17:36:55+07
 321	27	\N	63	2021-04-28 17:36:55+07
+348	31	ha la la	\N	2021-05-05 23:22:03+07
 325	28	I got some chewing gum	65	2021-04-29 09:54:14+07
+349	28	la la la lá	\N	2021-05-05 23:22:23+07
 327	27	\N	67	2021-04-29 09:59:36+07
 309	31	\N	55	2021-04-27 17:17:09+07
 310	31	\N	56	2021-04-27 17:17:09+07
 311	31	\N	57	2021-04-27 17:17:09+07
+350	28	ye ye yeah yeah	\N	2021-05-05 23:22:48+07
+351	31	ha hah ha hah	\N	2021-05-05 23:23:01+07
+354	45	r u ok??	\N	2021-05-06 16:17:46+07
+355	32	duh!??	\N	2021-05-06 16:18:05+07
+356	32	why not?	\N	2021-05-06 16:18:17+07
 341	28	hi there	\N	2021-04-30 11:23:56+07
 342	28	yeeeaaahh	\N	2021-05-01 09:37:07+07
+343	28	whatup??	\N	2021-05-03 10:38:40+07
+358	28	hehe	\N	2021-05-08 11:30:08+07
+359	27	@_@	\N	2021-05-08 11:32:03+07
 \.
 
 
@@ -549,15 +655,12 @@ COPY public.messagerecipient (messageid, recipientid, recipientgroupid, hasread)
 142	28	\N	t
 143	27	\N	t
 144	30	\N	t
-63	31	\N	f
-64	31	\N	f
 30	31	\N	t
 31	27	\N	t
 32	27	\N	t
 33	31	\N	t
 34	27	\N	t
 7	28	\N	t
-65	31	\N	f
 5	27	\N	t
 66	31	\N	t
 67	31	\N	t
@@ -626,6 +729,7 @@ COPY public.messagerecipient (messageid, recipientid, recipientgroupid, hasread)
 171	27	\N	t
 172	30	\N	t
 173	27	\N	t
+63	31	\N	t
 184	28	\N	t
 175	34	\N	t
 178	31	\N	t
@@ -695,13 +799,20 @@ COPY public.messagerecipient (messageid, recipientid, recipientgroupid, hasread)
 241	28	\N	t
 245	28	\N	t
 244	28	\N	t
+354	32	\N	t
 248	27	\N	t
 249	27	\N	t
 251	45	\N	t
 252	28	\N	t
 253	45	\N	t
 254	28	\N	t
+355	45	\N	t
+356	45	\N	t
+64	31	\N	t
+65	31	\N	t
 258	45	\N	t
+358	27	\N	t
+359	28	\N	t
 268	28	\N	t
 269	45	\N	t
 271	28	\N	t
@@ -726,6 +837,16 @@ COPY public.messagerecipient (messageid, recipientid, recipientgroupid, hasread)
 327	28	\N	t
 341	27	\N	t
 342	45	\N	t
+343	27	\N	t
+344	28	\N	t
+345	31	\N	t
+346	34	\N	t
+347	31	\N	t
+348	28	\N	t
+349	31	\N	t
+350	31	\N	t
+351	28	\N	t
+402	27	\N	t
 \.
 
 
@@ -734,15 +855,15 @@ COPY public.messagerecipient (messageid, recipientid, recipientgroupid, hasread)
 --
 
 COPY public.useraccount (userid, email, userpassword) FROM stdin;
-30	jimmi@gmail.com	79bc4b08613f14f23b6de998dd0369a70757b6b06896ddf7212190efe0f2f8f6
-27	ty@gmail.com	3d8c400a8d25320c39b5e172a4a537ecc017bfd48e8805aed6a019b9673270ab
 28	bot@gmail.com	be1df577011f987938779b7c5dab76b2639e8cdb2e1ac9014acb4a2788b78542
 31	tri@gmail.com	0621201787023d139a92746ccf25c12d78dd2b05a0f63fb6c65fb0984d746a01
 32	khoai@gmail.com	6a278452079c408faa53cc47c9114967f117063f28729fbb6736e1bb9efcd7be
 33	cua@gmail.com	946f0f1e02ba9fa2f4697fa415dddb21b8d2c0a7cc01b3f0bfcc6f99d81264af
 34	la@gmail.com	c36ffe81e0e7d2c2350e3e8aaa84072880bb70529a5a5158be3bcc170f7f6248
 44	minhb1704833@student.ctu.edu.vn	b54736e73de69d7169f357731be10da81095e1cd4b0ab23fea4617345d5f5060
+30	jimmi@gmail.com	79bc4b08613f14f23b6de998dd0369a70757b6b06896ddf7212190efe0f2f8f6
 45	tyb1706552@student.ctu.edu.vn	7b8b0266fa33595f56c2f4ff681407b49ac331d5721f988d4ffeb42453c28170
+27	ty@gmail.com	7b8b0266fa33595f56c2f4ff681407b49ac331d5721f988d4ffeb42453c28170
 \.
 
 
@@ -759,23 +880,30 @@ COPY public.usergroup (userid, groupid, joindate, inviterid) FROM stdin;
 --
 
 COPY public.userinfo (userid, firstname, lastname, avatar, createdate, isactive, firstnameeng, lastnameeng) FROM stdin;
+28	Lú	Bọt	/avatars/avatar_1613880807073.jpg	2021-02-21	t	Lu	Bot
+45	Tỷ Đô	Joe	/avatars/avatar_1618137649981.jpg	2021-04-11	t	Ty Do	Joe
 27	Tỷ	Nguyễn	/avatars/avatar_1613879928528.jpg	2021-02-21	t	Ty	Nguyen
-30	jimmi	ngủyên	/avatars/avatar_1614163561199.png	2021-02-24	t	jimmi	nguyen
 31	Trí	Trần	/avatars/avatar_1614853312661.jpg	2021-03-04	t	Tri	Tran
 33	Cua	Ngang	/avatars/avatar_1616408439257.jpg	2021-03-22	t	Cua	Ngang
 34	Lá	Cành Thị	/avatars/avatar_1616661249041.jpg	2021-03-25	t	La	Canh Thi
 32	Gian	Khoai	/avatars/avatar_1616060535623.png	2021-03-18	t	Gian	Khoai
 44	Tử Minh	Khưu	/avatars/avatar_1618137650214.jpg	2021-04-11	t	Tu Minh	Khuu
-45	Tỷ Đô	Joe	/avatars/avatar_1618137649981.jpg	2021-04-11	t	Ty Do	Joe
-28	Lú	Bọt	/avatars/avatar_1613880807073.jpg	2021-02-21	t	Lu	Bot
+30	jimmi	ngủyên	/avatars/avatar_1614163561199.png	2021-02-24	t	jimmi	nguyen
 \.
+
+
+--
+-- Name: accountregistrationrequest_requestid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.accountregistrationrequest_requestid_seq', 8, true);
 
 
 --
 -- Name: fileinfo_fileid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.fileinfo_fileid_seq', 80, true);
+SELECT pg_catalog.setval('public.fileinfo_fileid_seq', 110, true);
 
 
 --
@@ -789,14 +917,46 @@ SELECT pg_catalog.setval('public.groupinfo_groupid_seq', 1, false);
 -- Name: messageinfo_messageid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.messageinfo_messageid_seq', 342, true);
+SELECT pg_catalog.setval('public.messageinfo_messageid_seq', 445, true);
 
 
 --
 -- Name: useraccount_userid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.useraccount_userid_seq', 45, true);
+SELECT pg_catalog.setval('public.useraccount_userid_seq', 51, true);
+
+
+--
+-- Name: accountregistrationrequest accountregistrationrequest_email_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.accountregistrationrequest
+    ADD CONSTRAINT accountregistrationrequest_email_key UNIQUE (email);
+
+
+--
+-- Name: accountregistrationrequest accountregistrationrequest_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.accountregistrationrequest
+    ADD CONSTRAINT accountregistrationrequest_pkey PRIMARY KEY (requestid);
+
+
+--
+-- Name: adminaccount adminaccount_adminname_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.adminaccount
+    ADD CONSTRAINT adminaccount_adminname_key UNIQUE (adminname);
+
+
+--
+-- Name: adminaccount adminaccount_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.adminaccount
+    ADD CONSTRAINT adminaccount_pkey PRIMARY KEY (adminid);
 
 
 --
