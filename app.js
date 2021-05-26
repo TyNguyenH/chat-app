@@ -354,7 +354,7 @@ app.post('/register', (req, res) => {
                     let mailOptions = {
                         from: 'chatapp.auth.noreply@gmail.com',
                         to: email,
-                        subject: 'Xác thực email',
+                        subject: '[ChatApp] Xác thực email',
                         html: `<div style="margin: auto; text-align:center;">
                             <p style="font-weight: bold; font-size: 22px;">Vui lòng click chọn xác thực để hoàn thành đăng ký:</p>
                             <a style="padding: 7px 8px; border: none; border-radius: 5px; background-color: #4287f5; color: white; text-decoration: none; font-weight: bold; font-size: 22px; cursor: pointer;" href="${process.env.HOST_ADDRESS}:${process.env.HOST_PORT_SECURE}/register/auth/${email}/${tempRegister[email].secretCode = secretCode}" target="_blank">Xác thực</a>
@@ -373,7 +373,7 @@ app.post('/register', (req, res) => {
                         }
                     });
 
-                    const message = 'Bạn vui lòng check email để xác thực tài khoản. (Lưu ý: Có thể email xác thực sẽ bị tài khoản mail của bạn chặn nên vui lòng kiểm tra hộp thư spam';
+                    const message = 'Bạn vui lòng check email để xác thực tài khoản. (Lưu ý: Có thể email xác thực sẽ bị tài khoản mail của bạn chặn nên vui lòng kiểm tra hộp thư spam)';
                     res.render('notification.ejs', { message });
                 } else {
                     res.sendFile('./public/unsuccessful-reg.html', { root: __dirname });

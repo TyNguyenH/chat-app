@@ -26,7 +26,7 @@ function sendEmailNotification(email, emailContent) {
     let mailOptions = {
         from: 'chatapp.auth.noreply@gmail.com',
         to: email,
-        subject: 'Đăng ký tài khoản ChatApp',
+        subject: '[ChatApp] Đăng ký tài khoản',
         html: `<div style="margin: auto; text-align: center; font-size: large;">
                 ${emailContent}
             </div>`
@@ -200,7 +200,7 @@ router.delete('/registration-request/deny/:requestID', (req, res) => {
         const sql = `
             DELETE FROM AccountRegistrationRequest
             WHERE requestID = ${requestID}
-            RETURNING email
+            RETURNING email, avatar;
         `;
 
         // Delete newly registered user from AccountRegistrationRequest
@@ -211,6 +211,9 @@ router.delete('/registration-request/deny/:requestID', (req, res) => {
             } else {
                 if (dbRes.rows.length == 1) {
                     const email = dbRes.rows[0].email;
+                    const avatarFilePath = dbRes.rows[0].avatar;
+                    fs.unlinkSync(`./public/${avatarFilePath}`);
+
                     const message = 'Xin lỗi vì tài khoản ChatApp của bạn đã không được chấp nhận. Bạn vui lòng đăng ký tài khoản với thông tin phù hợp hơn';
                     sendEmailNotification(email, message);
 

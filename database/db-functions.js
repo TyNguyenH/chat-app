@@ -1032,7 +1032,7 @@ module.exports = {
         if (typeof offset === 'number' && typeof limit === 'number') {
             try {
                 const sql = `
-                    SELECT requestID, email, firstName, lastName, TO_CHAR(requestTime, 'DD-MM-YYYY HH24:MM:SS') as requestTime, avatar
+                    SELECT requestID, email, firstName, lastName, TO_CHAR(requestTime, 'DD-MM-YYYY HH24:MI:SS') as requestTime, avatar
                     FROM AccountRegistrationRequest
                     OFFSET ${offset}
                     LIMIT ${limit}
