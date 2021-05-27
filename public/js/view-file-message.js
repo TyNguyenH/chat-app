@@ -330,16 +330,27 @@ fileMessageViewerWrapper.onfocus = () => {
 
                 // Update fileMessageList if the user is still in the same conversation
                 else if (fileMessageList.getCurrentFriendID() === friendID) {
+                    console.log('===');
                     let currentViewingImage = document.querySelector('#file-message-viewer > img');
                     const fileMessageListElement = document.querySelector('#file-message-list');
 
                     // Update fileMessageList
                     for (let fileMessageDiv of fileMessageListElement.children) {
                         if (fileMessageDiv.querySelector('img').getAttribute('src') === currentViewingImage.getAttribute('src')) {
-                            let index = fileMessageDiv.getAttribute('data-file-message-index');
-                            index = Number.parseInt(index);
+                            const activeFileMessageIndex = fileMessageList.getActiveFileMessageIndex();
 
-                            fileMessageList.moveToFile(index);
+                            let fileMessageIndex = fileMessageDiv.getAttribute('data-file-message-index');
+                            fileMessageIndex = Number.parseInt(fileMessageIndex);
+
+                            // Move next
+                            if (fileMessageIndex < activeFileMessageIndex) {
+                                fileMessageList.moveToFile(activeFileMessageIndex - fileMessageIndex);
+                            }
+
+                            // Move back
+                            if (fileMessageIndex > activeFileMessageIndex) {
+                                fileMessageList.moveToFile((fileMessageIndex - activeFileMessageIndex) * (-1));
+                            }
                         }
                     }
                 }
