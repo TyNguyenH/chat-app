@@ -18,7 +18,7 @@ function sendEmailNotification(email, emailContent) {
         service: 'Gmail',
         auth: {
             user: 'chatapp.auth.noreply@gmail.com',
-            pass: 'z!2)3LpG*%~U'
+            pass: 'bzhmxvupgvdqvsck'
         }
     });
 

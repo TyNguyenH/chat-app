@@ -357,7 +357,7 @@ app.post('/register', (req, res) => {
                         service: 'Gmail',
                         auth: {
                             user: 'chatapp.auth.noreply@gmail.com',
-                            pass: 'z!2)3LpG*%~U'
+                            pass: 'bzhmxvupgvdqvsck'
                         }
                     });
 
@@ -385,11 +385,13 @@ app.post('/register', (req, res) => {
 
                     // Delete temporary registering account when valid time is over
                     setTimeout(() => {
-                        fs.unlinkSync(path.join(__dirname, 'public', tempRegister[email].avatarFilePath));
-                        delete tempRegister[email];
+                        if (tempRegister[email]) {
+                            fs.unlinkSync(path.join(__dirname, 'public', tempRegister[email].avatarFilePath));
+                            delete tempRegister[email];
+                        }
                     }, 43200000);
 
-                    const message = 'Bạn vui lòng check email để xác thực tài khoản. (Lưu ý: Có thể email xác thực sẽ bị tài khoản mail của bạn chặn nên vui lòng kiểm tra hộp thư spam)';
+                    const message = 'Bạn vui lòng check email để xác thực tài khoản. <br> (Lưu ý: Có thể email xác thực sẽ bị tài khoản mail của bạn chặn nên vui lòng kiểm tra hộp thư spam)';
                     res.render('notification.ejs', { message });
                 } else {
                     res.sendFile('./public/unsuccessful-reg.html', { root: __dirname });

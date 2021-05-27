@@ -170,7 +170,7 @@ router.put('/user-account', (req, res) => {
                                 service: 'Gmail',
                                 auth: {
                                     user: 'chatapp.auth.noreply@gmail.com',
-                                    pass: 'z!2)3LpG*%~U'
+                                    pass: 'bzhmxvupgvdqvsck'
                                 }
                             });
 
@@ -189,20 +189,22 @@ router.put('/user-account', (req, res) => {
                             transporter.sendMail(mailOptions, (err, info) => {
                                 if (err) {
                                     console.log(err);
-                                    res.sendFile('./public/unsuccessful-reg.html', { root: __dirname });
+                                    res.send(response);
                                 } else {
                                     console.log(`Message sent to: ${email}`);
                                     console.log(info.response, '\n');
+
+                                    // Delete temporary updating account when valid time is over
+                                    setTimeout(() => {
+                                        if (tempUserUpdateAccount[email]) {
+                                            delete tempUserUpdateAccount[email];
+                                        }
+                                    }, 43200000);
+
+                                    response.message = 'success';
+                                    res.send(response);
                                 }
                             });
-
-                            // Delete temporary updating account when valid time is over
-                            setTimeout(() => {
-                                delete tempUserUpdateAccount[email];
-                            }, 43200000);
-
-                            response.message = 'success';
-                            res.send(response);
                         } 
                         
                         // Incorrect old password
@@ -253,6 +255,10 @@ router.get('/user-account/auth/:email/:secretCode', (req, res) => {
             }
         });
     } else {
+        if (tempUserUpdateAccount[email]) {
+            delete tempUserUpdateAccount[email];
+        }
+
         const message = 'Cập nhật mật khẩu <br> không thành công';
         res.render('notification.ejs', { message });
     }
