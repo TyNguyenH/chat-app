@@ -19,10 +19,18 @@ http.get('*', function (req, res) {
 })
 http.listen(process.env.HOST_PORT);
 
+
+/* 
+    If trusted CA certificates are found, use them
+    Else, use self-signed cert
+*/
+const keyPem = fs.existsSync('./key.pem') ? fs.readFileSync('./key.pem') : fs.readFileSync('./server.key');
+const certPem = fs.existsSync('./cert.pem') ? fs.readFileSync('./cert.pem') : fs.readFileSync('./server.cert');
+
 // Initialize https server
 const httpsServer = https.createServer({
-    key: fs.readFileSync('./server.key'),
-    cert: fs.readFileSync('./server.cert')
+    key: keyPem,
+    cert: certPem
 }, app).listen(process.env.HOST_PORT_SECURE);
 
 
