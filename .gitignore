@@ -12,5 +12,3 @@ log/
 /test.js
 /Users.txt
 /chatapp.auth.noreply.txt
-/server.key
-/server.cert
