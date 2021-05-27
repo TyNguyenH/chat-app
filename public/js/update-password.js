@@ -95,7 +95,7 @@ successfulNotification.innerHTML = `
     <div class="bg-blue-500 py-4 rounded-lg rounded-b-none">
         <img src="/imgs/white-tick.png" class="mx-auto w-32">
     </div>
-    <p class="py-4 mx-14 text-xl font-bold text-center">Thay đổi mật khẩu thành công !</p>
+    <p class="py-4 mx-14 text-xl font-bold text-center">Bạn vui lòng kiểm tra email để xác nhận cập nhật mật khẩu !</p>
     <div class="container mx-auto w-1/2 text-center ">
         <button class="
             mb-3 px-2 py-1

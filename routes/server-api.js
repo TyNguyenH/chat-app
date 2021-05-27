@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const express = require('express');
+const nodemailer = require('nodemailer');
 const db = require('../database/db');
 const dbFunctions = require('../database/db-functions');
 
@@ -103,6 +104,20 @@ router.get('/personal-info', (req, res) => {
 });
 
 
+/* 
+    This variable is used for authenticating user when updating password
+    {object} tempUserAccount: {
+        email: {
+            newHashedPassword:  {string}
+            secretCode:         {string}
+            beginTime:          {number | Date.now()}
+            maxAge:             {number}
+        }
+    }
+*/
+let tempUserUpdateAccount = {};
+
+
 // Update user's password
 router.put('/user-account', (req, res) => {
     if (!req.session || !req.session.user) {
@@ -123,7 +138,7 @@ router.put('/user-account', (req, res) => {
             // Update password
             if (oldHashedPassword && newHashedPassword) {
                 let sql = `
-                    SELECT userPassword
+                    SELECT email, userPassword
                     FROM UserAccount
                     WHERE userID = ${userID}
                 `;
@@ -136,24 +151,58 @@ router.put('/user-account', (req, res) => {
                     
                     // Correct userID
                     if (dbRes.rows.length == 1) {
-                        // Correct old password
                         const userPassword = dbRes.rows[0].userpassword;
-                        if (oldHashedPassword === userPassword) {
-                            sql = `
-                                UPDATE UserAccount
-                                SET userPassword = '${newHashedPassword}'
-                                WHERE userID = ${userID}
-                            `;
+                        const email = dbRes.rows[0].email;
 
-                            db.query(sql, (err) => {
-                                if (err) {
-                                    console.log(err);
-                                    res.send(response);
-                                } else {
-                                    response.message = 'success';
-                                    res.send(response);
+                        // Correct old password
+                        if (oldHashedPassword === userPassword) {
+                            shaSum = crypto.createHash('sha256');
+                            const secretCode = shaSum.update(`${oldPassword}-->${newPassword}:)`).digest('hex');
+
+                            tempUserUpdateAccount[email] = {};
+                            tempUserUpdateAccount[email].newHashedPassword = newHashedPassword;
+                            tempUserUpdateAccount[email].secretCode = secretCode;
+                            tempUserUpdateAccount[email].beginTime = Date.now();
+                            tempUserUpdateAccount[email].maxAge = 43200000;
+
+                            // Config mail server
+                            let transporter = nodemailer.createTransport({
+                                service: 'Gmail',
+                                auth: {
+                                    user: 'chatapp.auth.noreply@gmail.com',
+                                    pass: 'z!2)3LpG*%~U'
                                 }
                             });
+
+                            // Initialize mail options
+                            let mailOptions = {
+                                from: 'chatapp.auth.noreply@gmail.com',
+                                to: email,
+                                subject: '[ChatApp] Cập nhật mật khẩu',
+                                html: `<div style="margin: auto; text-align:center;">
+                                            <p style="font-weight: bold; font-size: 22px;">Vui lòng click chọn xác thực để hoàn thành cập nhật mật khẩu:</p>
+                                            <a style="padding: 7px 8px; border: none; border-radius: 5px; background-color: #4287f5; color: white; text-decoration: none; font-weight: bold; font-size: 22px; cursor: pointer;" href="${process.env.HOST_ADDRESS}:${process.env.HOST_PORT_SECURE}/api/user-account/auth/${email}/${secretCode}" target="_blank">Xác thực</a>
+                                        </div>`
+                            }
+
+                            // Proceed sending email
+                            transporter.sendMail(mailOptions, (err, info) => {
+                                if (err) {
+                                    console.log(err);
+                                    res.sendFile('./public/unsuccessful-reg.html', { root: __dirname });
+                                } else {
+                                    console.log(`Message sent to: ${email}`);
+                                    console.log(info.response, '\n');
+                                }
+                            });
+
+                            // Delete temporary updating account when valid time is over
+                            setTimeout(() => {
+                                delete tempUserUpdateAccount[email];
+                            }, 43200000);
+
+                            response.message = 'success';
+                            res.send(response);
                         } 
                         
                         // Incorrect old password
@@ -169,6 +218,43 @@ router.put('/user-account', (req, res) => {
                 });
             }
         }
+    }
+});
+
+
+// Authenticate user email when changing password
+router.get('/user-account/auth/:email/:secretCode', (req, res) => {
+    const email = req.params.email;
+    const emailPattern = /^\b[\w\.-]+@[\w\.-]+\.\w{1,}\b$/g;
+    const secretCode = req.params.secretCode;
+
+    if (tempUserUpdateAccount[email] && email.match(emailPattern)
+        && secretCode === tempUserUpdateAccount[email].secretCode
+        && Date.now() - tempUserUpdateAccount[email].beginTime <= tempUserUpdateAccount[email].maxAge) {
+
+        const newHashedPassword = tempUserUpdateAccount[email].newHashedPassword;
+
+        sql = `
+            UPDATE UserAccount
+            SET userPassword = '${newHashedPassword}'
+            WHERE email = '${email}'
+        `;
+
+        db.query(sql, (err) => {
+            if (err) {
+                console.log(err);
+                res.send(response);
+            } else {
+                // Pop out temporary user registering data when user registered successfully
+                delete tempUserUpdateAccount[email];
+
+                const message = 'Cập nhật mật khẩu <br> thành công';
+                res.render('notification.ejs', { message });
+            }
+        });
+    } else {
+        const message = 'Cập nhật mật khẩu <br> không thành công';
+        res.render('notification.ejs', { message });
     }
 });
 
