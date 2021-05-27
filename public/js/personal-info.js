@@ -138,7 +138,7 @@ changePasswordBtn.onclick = () => {
                 <div class="flex flex-row justify-end mx-1 mb-9">
                     <div id="old-password-warning" class="mt-6 w-5/12 text-red-500 invisible">* Tối thiểu 6 ký tự</div>
                     <div class="mt-2 mb-4 flex self-start justify-end items-center">
-                        <label class="mx-1 text-sm text-center">Hiện mật khẩu</label>
+                        <label for="show-old-password" class="mx-1 text-sm text-center">Hiện mật khẩu</label>
                         <input id="show-old-password" type="checkbox" class="h-4 w-4" onclick="${showOldPassword}">
                     </div>
                 </div>
@@ -178,7 +178,7 @@ changePasswordBtn.onclick = () => {
                         </ul>
                     </div>
                     <div class="w-4/12 flex mt-2 self-start justify-end items-center">
-                        <label class="mx-1 text-sm text-center">Hiện mật khẩu</label>
+                        <label for="show-new-password" class="mx-1 text-sm text-center">Hiện mật khẩu</label>
                         <input id="show-new-password" type="checkbox" class="h-4 w-4" onclick="${showNewPassword}">
                     </div>
                 </div>

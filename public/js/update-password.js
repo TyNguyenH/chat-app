@@ -90,7 +90,7 @@ newPasswordElement.onkeyup = checkNewPassword;
 // Successful notification when updating password
 const successfulNotification = document.createElement('div');
 successfulNotification.setAttribute('id', 'successful-notification');
-successfulNotification.setAttribute('class', 'container mt-28 mx-auto w-80 rounded-lg shadow-xl');
+successfulNotification.setAttribute('class', 'container border border-gray-300 mt-28 mx-auto w-80 rounded-lg shadow-xl');
 successfulNotification.innerHTML = `
     <div class="bg-blue-500 py-4 rounded-lg rounded-b-none">
         <img src="/imgs/white-tick.png" class="mx-auto w-32">
@@ -104,7 +104,7 @@ successfulNotification.innerHTML = `
             text-white font-semibold
             focus:outline-none
             hover:shadow-lg
-            transform hover:scale-110
+            transform hover:scale-105
             transition duration-75
             ">
             Đóng
@@ -123,7 +123,7 @@ successfulNotification.onclick = (event) => {
 // Successful notification when updating password
 const unsuccessfulNotification = document.createElement('div');
 unsuccessfulNotification.setAttribute('id', 'unsuccessful-notification');
-unsuccessfulNotification.setAttribute('class', 'container mt-28 mx-auto w-80 rounded-lg shadow-xl');
+unsuccessfulNotification.setAttribute('class', 'container border border-gray-300 mt-28 mx-auto w-80 rounded-lg shadow-xl');
 unsuccessfulNotification.innerHTML = `
     <div class="bg-gray-200 py-8 rounded-lg rounded-b-none">
         <img src="/imgs/x-mark.png" class="mx-auto w-24">
@@ -137,7 +137,7 @@ unsuccessfulNotification.innerHTML = `
             text-white font-semibold
             focus:outline-none
             hover:shadow-lg
-            transform hover:scale-110
+            transform hover:scale-105
             transition duration-75
             ">
             Đóng
