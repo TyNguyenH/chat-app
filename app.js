@@ -144,13 +144,17 @@ app.get('/home', (req, res) => {
                         log(req, 'Error getting username and avatar:');
                         console.log(err);
                     } else {
-                        let userID = dbRes.rows[0].userid;
-                        let firstName = dbRes.rows[0].firstname;
-                        let lastName = dbRes.rows[0].lastname;
-                        let avatarSrc = dbRes.rows[0].avatar;
+                        if (dbRes.rows.length == 1) {
+                            let userID = dbRes.rows[0].userid;
+                            let firstName = dbRes.rows[0].firstname;
+                            let lastName = dbRes.rows[0].lastname;
+                            let avatarSrc = dbRes.rows[0].avatar;
 
-                        let data = { userID, firstName, lastName, avatarSrc };
-                        res.render('home.ejs', data);
+                            let data = { userID, firstName, lastName, avatarSrc };
+                            res.render('home.ejs', data);
+                        } else {
+                            res.end();
+                        }
                     }
                 });
             }
@@ -188,14 +192,18 @@ app.get('/friend-list', (req, res) => {
                             log(req, 'Error getting user info:');
                             console.log(err);
                         } else {
-                            const userID = dbRes.rows[0].userid;
-                            const firstName = dbRes.rows[0].firstname;
-                            const lastName = dbRes.rows[0].lastname;
-                            const avatarSrc = dbRes.rows[0].avatar;
+                            if (dbRes.rows.length == 1) {
+                                const userID = dbRes.rows[0].userid;
+                                const firstName = dbRes.rows[0].firstname;
+                                const lastName = dbRes.rows[0].lastname;
+                                const avatarSrc = dbRes.rows[0].avatar;
 
-                            const data = { userID, firstName, lastName, avatarSrc };
+                                const data = { userID, firstName, lastName, avatarSrc };
 
-                            res.render('friend-list.ejs', data);
+                                res.render('friend-list.ejs', data);
+                            } else {
+                                res.end();
+                            }
                         }
                     }
                 );
@@ -232,10 +240,11 @@ app.get('/personal-info', (req, res) => {
 
                 // Get user info
                 db.query(sql, (err, dbRes) => {
-                        if (err) {
-                            log(req, 'Error getting user info:');
-                            console.log(err);
-                        } else {
+                    if (err) {
+                        log(req, 'Error getting user info:');
+                        console.log(err);
+                    } else {
+                        if (dbRes.rows.length == 1) {
                             const userID = dbRes.rows[0].userid;
                             const firstName = dbRes.rows[0].firstname;
                             const lastName = dbRes.rows[0].lastname;
@@ -244,9 +253,11 @@ app.get('/personal-info', (req, res) => {
                             const data = { userID, firstName, lastName, avatarSrc };
 
                             res.render('personal-info.ejs', data);
+                        } else {
+                            res.end();
                         }
                     }
-                );
+                });
             } else {
                 res.redirect('/home');
             }
@@ -264,13 +275,13 @@ app.get('/personal-info', (req, res) => {
 
     tempRegister = {
         email: {
-            firstName:      {string}
-            lastName:       {string}
-            hashedPass:     {string}
-            avatarFilePath: {string}
-            secretCode:     {string}
-            beginTime:      {number | Date.now()},
-            expire:         {number}
+            firstName:          {string}
+            lastName:           {string}
+            hashedPassword:     {string}
+            avatarFilePath:     {string}
+            secretCode:         {string}
+            beginTime:          {number | Date.now()}
+            maxAge:             {number}
         },
         ...
     }
@@ -333,13 +344,13 @@ app.post('/register', (req, res) => {
 
                     let shaSum = crypto.createHash('sha256');
                     const hashedPass = shaSum.update(password).digest('hex');
-                    tempRegister[email].hashedPass = hashedPass;
+                    tempRegister[email].hashedPassword = hashedPass;
 
                     shaSum = crypto.createHash('sha256');
                     const secretCode = shaSum.update(`${Date.now()} s3cr3tK3Y`).digest('hex');
                     tempRegister[email].secretCode = secretCode;
                     tempRegister[email].beginTime = Date.now();
-                    tempRegister[email].expire = 43200000;
+                    tempRegister[email].maxAge = 43200000;
 
                     // Config mail server
                     let transporter = nodemailer.createTransport({
@@ -368,10 +379,15 @@ app.post('/register', (req, res) => {
                             res.sendFile('./public/unsuccessful-reg.html', { root: __dirname });
                         } else {
                             console.log(`Message sent to: ${email}`);
-                            console.log(`href="${process.env.HOST_ADDRESS}:${process.env.HOST_PORT_SECURE}/register/auth/${email}/${tempRegister[email].secretCode = secretCode}"`);
                             console.log(info.response, '\n');
                         }
                     });
+
+                    // Delete temporary registering account when valid time is over
+                    setTimeout(() => {
+                        fs.unlinkSync(path.join(__dirname, 'public', tempRegister[email].avatarFilePath));
+                        delete tempRegister[email];
+                    }, 43200000);
 
                     const message = 'Bạn vui lòng check email để xác thực tài khoản. (Lưu ý: Có thể email xác thực sẽ bị tài khoản mail của bạn chặn nên vui lòng kiểm tra hộp thư spam)';
                     res.render('notification.ejs', { message });
@@ -402,7 +418,7 @@ app.post('/register', (req, res) => {
                         console.log(err);
                         res.sendFile('./public/unsuccessful-reg.html', { root: __dirname });
                     } else {
-                        const message = 'Thông tin đăng ký của bạn sẽ được quản trị viên kiểm duyệt. Bạn sẽ nhận đc email thông báo khi quá trình duyệt hoàn tất.';
+                        const message = 'Thông tin đăng ký của bạn <br> sẽ được quản trị viên kiểm duyệt. Bạn sẽ nhận đc email thông báo khi quá trình duyệt hoàn tất.';
                         res.render('notification.ejs', { message });
                     }
                 })
@@ -422,9 +438,9 @@ app.get('/register/auth/:email/:secretCode', (req, res) => {
 
     if (tempRegister[email] && email.match(emailPattern)
         && secretCode == tempRegister[email].secretCode
-        && Date.now() - tempRegister[email].beginTime <= tempRegister[email].expire) {
+        && Date.now() - tempRegister[email].beginTime <= tempRegister[email].maxAge) {
 
-        let hashedPass = tempRegister[email].hashedPass;
+        let hashedPass = tempRegister[email].hashedPassword;
         let firstName = tempRegister[email].firstName;
         let lastName = tempRegister[email].lastName;
         let avatarFilePath = tempRegister[email].avatarFilePath;
@@ -666,6 +682,12 @@ app.post('/login', async (req, res) => {
 function checkSession(req, res, next) {
     // Allow checking existing email account(s) API
     if (req.url.includes('/register/')) {
+        next();
+        return;
+    }
+
+    // Allow user authentication API when updating account password
+    if (req.url.includes('/user-account/auth/')) {
         next();
         return;
     }
