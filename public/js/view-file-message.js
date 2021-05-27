@@ -64,8 +64,19 @@ class FileMessageList {
             let index2 = 0;
 
             while (index1 < array1Len || index2 < array2Len) {
-                if ((fileMessagesArray1[index1] == fileMessagesArray2[index2]) && fileMessagesArray1[index1].messageID == fileMessagesArray2[index2].messageID) {
-                    arrayResult.push(fileMessagesArray1[index1]);
+                // If 2 file messages have the same messageID, choose the one with isActive == true
+                if ((fileMessagesArray1[index1] && fileMessagesArray2[index2]) && fileMessagesArray1[index1].messageID == fileMessagesArray2[index2].messageID) {
+                    if (fileMessagesArray1[index1].isActive == true) {
+                        arrayResult.push(fileMessagesArray1[index1]);
+                    }
+
+                    else if (fileMessagesArray2[index2].isActive == true) {
+                        arrayResult.push(fileMessagesArray2[index2]);
+                    }
+
+                    else {
+                        arrayResult.push(fileMessagesArray1[index1]);
+                    }
 
                     index1 += 1;
                     index2 += 1;
@@ -102,26 +113,58 @@ class FileMessageList {
     }
 
     // Move to next file message (the smaller the index, the latest the file message)
-    moveNextFile() {
-        if (this.activeFileMessageIndex - 1 >= 0) {
-            this.fileMessages[this.activeFileMessageIndex].isActive = false;
-            this.fileMessages[this.activeFileMessageIndex - 1].isActive = true;
+    moveNextFile(step) {
+        if (step === undefined) {
+            step = 1
+        }
 
-            this.activeFileMessageIndex -= 1;
+        if (this.activeFileMessageIndex - step >= 0) {
+            this.fileMessages[this.activeFileMessageIndex].isActive = false;
+            this.fileMessages[this.activeFileMessageIndex - step].isActive = true;
+
+            this.activeFileMessageIndex -= step;
+
+
+            if (this.activeFileMessageIndex - step < 0) {
+                const dateNow = new Date(Date.now());
+                const now = `${dateNow.getDate()}-${dateNow.getMonth() + 1}-${dateNow.getFullYear()} ${dateNow.getHours()}:${dateNow.getMinutes()}:${dateNow.getSeconds()}`;
+
+                const userID = document.querySelector('#user-info').getAttribute('data-user-id');
+                const friendID = document.querySelector('#file-message-viewer').getAttribute('data-friend-id');
+
+                const limit = this.fetchConfig.limit;
+                const offset = 0;
+
+                const searchOption = `searchCreatorID=[${userID},${friendID}]&searchRecipientID=[${userID},${friendID}]&searchDateTo=${now}&searchOffset=${offset}&searchLimit=${limit}`;
+
+                fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/file-messages/option?${searchOption}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        let fileMessages = data.fileMessages;
+                        if (fileMessages.length > 0) {
+                            this.addFileMessageObjectArray(fileMessages);
+                            this.renderFileMessageList();
+                        }
+                    })
+            }
         }
     }
 
     // Move to previous file message (the higher the index, the older the file message)
-    moveBackFile() {
-        if (this.activeFileMessageIndex + 1 < this.fileMessages.length) {
-            this.fileMessages[this.activeFileMessageIndex].isActive = false;
-            this.fileMessages[this.activeFileMessageIndex + 1].isActive = true;
+    moveBackFile(step) {
+        if (step === undefined) {
+            step = 1;
+        }
 
-            this.activeFileMessageIndex += 1;
+        if (this.activeFileMessageIndex + step < this.fileMessages.length) {
+            this.fileMessages[this.activeFileMessageIndex].isActive = false;
+            this.fileMessages[this.activeFileMessageIndex + step].isActive = true;
+
+            this.activeFileMessageIndex += step;
 
 
             // Fetch old file messages and add them to FileMessageList
-            if (this.activeFileMessageIndex + 1 == this.fileMessages.length) {
+            if (this.activeFileMessageIndex + step == this.fileMessages.length) {
                 const dateNow = new Date(Date.now());
                 const now = `${dateNow.getDate()}-${dateNow.getMonth() + 1}-${dateNow.getFullYear()} ${dateNow.getHours()}:${dateNow.getMinutes()}:${dateNow.getSeconds()}`;
 
@@ -149,41 +192,15 @@ class FileMessageList {
     }
 
     // Move to a specific file message index
-    moveToFile(index) {
-        index = Number.parseInt(index);
+    moveToFile(step) {
+        step = Number.parseInt(step);
 
-        if (index >= 0 && index < this.fileMessages.length) {
-            this.fileMessages[this.activeFileMessageIndex].isActive = false;
-            this.fileMessages[index].isActive = true;
+        if (step >= 0 && step < this.fileMessages.length) {
+            this.moveNextFile(step);
+        }
 
-            this.activeFileMessageIndex = index;
-
-
-            // Fetch old file messages and add them to FileMessageList
-            if (this.activeFileMessageIndex == (this.fileMessages.length - 1)) {
-                const dateNow = new Date(Date.now());
-                const now = `${dateNow.getDate()}-${dateNow.getMonth() + 1}-${dateNow.getFullYear()} ${dateNow.getHours()}:${dateNow.getMinutes()}:${dateNow.getSeconds()}`;
-
-                const userID = document.querySelector('#user-info').getAttribute('data-user-id');
-                const friendID = document.querySelector('#file-message-viewer').getAttribute('data-friend-id');
-
-                const limit = this.fetchConfig.limit;
-                const offset = this.fetchConfig.offset + 10;
-
-                const searchOption = `searchCreatorID=[${userID},${friendID}]&searchRecipientID=[${userID},${friendID}]&searchDateTo=${now}&searchOffset=${offset}&searchLimit=${limit}`;
-
-                fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/file-messages/option?${searchOption}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        let fileMessages = data.fileMessages;
-                        if (fileMessages.length > 0) {
-                            this.addFileMessageObjectArray(fileMessages);
-                            this.renderFileMessageList();
-
-                            this.fetchConfig.offset += 10;
-                        }
-                    })
-            }
+        if (step < 0) {
+            this.moveBackFile(Math.abs(step));
         }
     }
 
@@ -222,9 +239,22 @@ class FileMessageList {
             fileMessageDiv.setAttribute('class', `flex-shrink-0 cursor-pointer rounded-lg ${styleOpacity} hover:opacity-100 h-16 w-16 mx-2`);
 
             fileMessageDiv.onclick = (event) => {
-                const fileMessageIndex = event.currentTarget.getAttribute('data-file-message-index');
-                fileMessageList.moveToFile(Number.parseInt(fileMessageIndex));
-                fileMessageList.renderFileMessageList()
+                let fileMessageIndex = event.currentTarget.getAttribute('data-file-message-index');
+                fileMessageIndex = Number.parseInt(fileMessageIndex);
+
+                const activeFileMessageIndex = fileMessageList.getActiveFileMessageIndex();
+
+                // Move next
+                if (fileMessageIndex < activeFileMessageIndex) {
+                    fileMessageList.moveToFile(activeFileMessageIndex - fileMessageIndex);
+                }
+
+                // Move back
+                if (fileMessageIndex > activeFileMessageIndex) {
+                    fileMessageList.moveToFile((fileMessageIndex - activeFileMessageIndex) * (-1));
+                }
+
+                fileMessageList.renderFileMessageList();
             }
 
             fileMessageDiv.innerHTML = `
@@ -249,6 +279,10 @@ class FileMessageList {
 
     getFileMessages() {
         return Array.from(this.fileMessages);
+    }
+
+    getActiveFileMessageIndex() {
+        return this.activeFileMessageIndex;
     }
 }
 
