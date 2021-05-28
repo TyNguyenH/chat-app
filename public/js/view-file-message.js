@@ -141,10 +141,12 @@ class FileMessageList {
                     .then(res => res.json())
                     .then(data => {
                         let fileMessages = data.fileMessages;
+
                         if (fileMessages.length > 0) {
                             this.addFileMessageObjectArray(fileMessages);
-                            this.renderFileMessageList();
                         }
+
+                        this.renderFileMessageList();
                     })
             }
         }
@@ -180,12 +182,13 @@ class FileMessageList {
                     .then(res => res.json())
                     .then(data => {
                         let fileMessages = data.fileMessages;
+
                         if (fileMessages.length > 0) {
                             this.addFileMessageObjectArray(fileMessages);
-                            this.renderFileMessageList();
-
                             this.fetchConfig.offset += 10;
                         }
+
+                        this.renderFileMessageList();
                     })
             }
         }
@@ -197,22 +200,24 @@ class FileMessageList {
 
         if (step >= 0 && step < this.fileMessages.length) {
             this.moveNextFile(step);
+            this.renderFileMessageList();
         }
 
         if (step < 0) {
             this.moveBackFile(Math.abs(step));
+            this.renderFileMessageList();
         }
     }
 
     // Update active status of fileMessageObjects based on currentViewingImage
     updateFileMessageList() {
-        this.fileMessages = this.fileMessages.map((fileMessageObject) => {
+        for (let fileMessageObject of this.fileMessages) {
             fileMessageObject.isActive = false;
-            return fileMessageObject;
-        })
+        }
 
         // Set active status for file message that is being viewed
         const currentViewingImage = document.querySelector('#file-message-viewer > img');
+
         for (let fileMessageObject of this.fileMessages) {
             if (currentViewingImage.getAttribute('src') === fileMessageObject.filePath) {
                 fileMessageObject.isActive = true;
@@ -264,13 +269,33 @@ class FileMessageList {
             fileMessageListElement.prepend(fileMessageDiv);
         }
 
-        let currentViewingImage = document.querySelector('#file-message-viewer > img');
-        currentViewingImage.setAttribute('src', this.fileMessages[this.activeFileMessageIndex].filePath);
+        if (this.fileMessages[this.activeFileMessageIndex]) {
+            let currentViewingImage = document.querySelector('#file-message-viewer > img');
+            currentViewingImage.setAttribute('src', this.fileMessages[this.activeFileMessageIndex].filePath);
+        }
     }
 
     resetFileMessages() {
         this.fetchConfig.offset = 0;
         this.fileMessages = [];
+        this.activeFileMessageIndex = null;
+    }
+
+    resetActiveFileMessageIndex() {
+        this.activeFileMessageIndex = null;
+    }
+
+    setActiveFileMessageIndex(index) {
+        this.activeFileMessageIndex = index;
+    }
+
+    setFetchConfig(offset, limit) {
+        this.fetchConfig.offset = offset;
+        this.fetchConfig.limit = limit;
+    }
+
+    getFetchConfig() {
+        return this.fetchConfig;
     }
 
     getCurrentFriendID() {
@@ -315,30 +340,30 @@ fileMessageViewerWrapper.onfocus = () => {
                     return fileMessageObject;
                 });
                 
+                const activeFileMessageIndex = fileMessageList.getActiveFileMessageIndex();
+
                 // This helps knowing which friend the user is talking to
                 let friendID = document.querySelector('#file-message-viewer').getAttribute('data-friend-id');
                 friendID = Number.parseInt(friendID);
                 
-                // Reset fileMessageList if the user moves to a different conversation
+                // Reset fileMessageList if the user moves to a different conversation or fileMessageList is empty
                 if (!fileMessageList.getCurrentFriendID() || fileMessageList.getCurrentFriendID() !== friendID) {
                     fileMessageList.currentFriendID = friendID;
 
                     fileMessageList.resetFileMessages();
                     fileMessageList.addFileMessageObjectArray(fileMessages);
                     fileMessageList.updateFileMessageList();
+                    fileMessageList.renderFileMessageList();
                 }
 
-                // Update fileMessageList if the user is still in the same conversation
+                // Update and render fileMessageList if the user is still in the same conversation
                 else if (fileMessageList.getCurrentFriendID() === friendID) {
-                    console.log('===');
                     let currentViewingImage = document.querySelector('#file-message-viewer > img');
                     const fileMessageListElement = document.querySelector('#file-message-list');
-
+                    
                     // Update fileMessageList
                     for (let fileMessageDiv of fileMessageListElement.children) {
                         if (fileMessageDiv.querySelector('img').getAttribute('src') === currentViewingImage.getAttribute('src')) {
-                            const activeFileMessageIndex = fileMessageList.getActiveFileMessageIndex();
-
                             let fileMessageIndex = fileMessageDiv.getAttribute('data-file-message-index');
                             fileMessageIndex = Number.parseInt(fileMessageIndex);
 
@@ -354,11 +379,53 @@ fileMessageViewerWrapper.onfocus = () => {
                         }
                     }
                 }
-            }
 
-            // Render file message list (below file message viewer)
-            fileMessageList.renderFileMessageList();
-            console.log(fileMessageList.getFileMessages());
+                // If clicked file message is not in fileMessageList, then add newly fetched file messages and update fileMessageList based on current viewing image
+                if (!fileMessageList.getActiveFileMessageIndex() || activeFileMessageIndex === fileMessageList.getActiveFileMessageIndex()) {
+                    let currentViewingMessageID = document.querySelector('#file-message-viewer').getAttribute('data-message-id');
+                    currentViewingMessageID = Number.parseInt(currentViewingMessageID);
+
+                    let activeFileMessageIndex;
+                    let activeFileMessageID;
+
+                    // fileMessages in fileMessageList is empty
+                    if (!fileMessageList.getActiveFileMessageIndex()) {
+                        fileMessageList.addFileMessageObjectArray(fileMessages);
+                        fileMessageList.setActiveFileMessageIndex(0);
+                    }
+
+                    activeFileMessageIndex = fileMessageList.getActiveFileMessageIndex();
+                    activeFileMessageID = fileMessageList.getFileMessages()[activeFileMessageIndex].messageID;
+
+                    let offset = 0;
+
+                    // Fetch new file messages
+                    if (currentViewingMessageID > activeFileMessageID) {
+                        offset = 0;
+                    }
+
+                    // Fetch old file messages
+                    if (currentViewingMessageID < activeFileMessageID) {
+                        offset = fileMessageList.getFetchConfig().offset + 10;
+                    }
+
+                    const searchOption = `searchCreatorID=[${userID},${friendID}]&searchRecipientID=[${userID},${friendID}]&searchDateTo=${now}&searchLimit=10&searchOffset=${offset}`;
+                    
+                    fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/file-messages/option?${searchOption}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            const fileMessages = data.fileMessages;
+                            if (fileMessages.length > 0) {
+                                fileMessageList.addFileMessageObjectArray(fileMessages);
+                                fileMessageList.setFetchConfig(offset, 10);
+                                                          
+                                fileMessageList.updateFileMessageList();
+
+                                fileMessageList.renderFileMessageList();
+                            }
+                        });
+                }
+            }
         })
 }
 
@@ -366,10 +433,12 @@ fileMessageViewerWrapper.onfocus = () => {
 fileMessageViewerWrapper.onkeydown = (event) => {
     if (event.key === 'ArrowLeft') {
         fileMessageList.moveBackFile();
+        fileMessageList.renderFileMessageList();
     }
 
     if (event.key === 'ArrowRight') {
         fileMessageList.moveNextFile();
+        fileMessageList.renderFileMessageList();
     }
 
     if (event.key === 'Escape') {
@@ -377,8 +446,6 @@ fileMessageViewerWrapper.onkeydown = (event) => {
             fileMessageViewerWrapper.classList.add('hidden');
         }
     }
-
-    fileMessageList.renderFileMessageList();
 }
 
 
