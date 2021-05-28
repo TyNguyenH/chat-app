@@ -250,7 +250,7 @@ function renderMessage(msgID, msgCreator, msgAvatarSrc, msgText, msgImageSrc, ms
     }
 
     if (msgAvatarSrc) {
-        avatarElement = `<div class="flex-shrink-0 self-start"><img src="${msgAvatarSrc}" class="mr-2 w-7 h-7 shadow-md rounded-full" alt="avatar"></div>`;
+        avatarElement = `<div class="select-none flex-shrink-0 self-start"><img src="${msgAvatarSrc}" class="mr-2 w-7 h-7 shadow-md rounded-full" alt="avatar"></div>`;
     }
 
     // Message text
@@ -300,7 +300,7 @@ function renderMessage(msgID, msgCreator, msgAvatarSrc, msgText, msgImageSrc, ms
             }
         `;
 
-        imgElement = `<img src="${msgImageSrc}" onclick="${imgOnclick}" alt="image" class="cursor-pointer rounded-lg">`;
+        imgElement = `<img src="${msgImageSrc}" onclick="${imgOnclick}" alt="image" class="select-none cursor-pointer rounded-lg">`;
     }
 
     // Message timestamp

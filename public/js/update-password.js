@@ -102,7 +102,7 @@ successfulNotification.innerHTML = `
             cursor-pointer
             bg-black rounded-md shadow-md
             text-white font-semibold
-            focus:outline-none
+            select-none focus:outline-none
             hover:shadow-lg
             transform hover:scale-105
             transition duration-75
@@ -135,7 +135,7 @@ unsuccessfulNotification.innerHTML = `
             cursor-pointer
             bg-black rounded-md shadow-md
             text-white font-semibold
-            focus:outline-none
+            select-none focus:outline-none
             hover:shadow-lg
             transform hover:scale-105
             transition duration-75

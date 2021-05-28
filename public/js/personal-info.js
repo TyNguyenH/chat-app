@@ -48,7 +48,7 @@ fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/personal-info`)
                         class="
                             mx-1 px-2 py-1 rounded-lg bg-red-600 shadow-lg
                             font-semibold text-white text-center
-                            focus:outline-none
+                            select-none focus:outline-none
                             transform hover:scale-105
                             transition duration-75
                         ">
@@ -79,7 +79,7 @@ fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/personal-info`)
                         class="
                             mx-1 px-2 py-1 rounded-lg bg-blue-500 shadow-lg
                             font-semibold text-white text-center
-                            focus:outline-none
+                            select-none focus:outline-none
                             transform hover:scale-105
                             transition duration-75
                         ">
@@ -199,7 +199,7 @@ changePasswordBtn.onclick = () => {
                             class="
                                 mx-1 px-2 py-1 rounded-lg bg-black shadow-lg
                                 font-semibold text-white text-center
-                                focus:outline-none
+                                select-none focus:outline-none
                                 transform hover:scale-105
                                 transition duration-75
                             ">
@@ -210,7 +210,7 @@ changePasswordBtn.onclick = () => {
                             class="
                                 mx-1 px-2 py-1 rounded-lg bg-blue-500 shadow-lg
                                 font-semibold text-white text-center
-                                focus:outline-none
+                                select-none focus:outline-none
                                 transform hover:scale-105
                                 transition duration-75
                             ">
