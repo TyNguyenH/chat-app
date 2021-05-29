@@ -66,6 +66,17 @@ let messageTextInput = document.querySelector('#message-text-input');
 let chatMsgBox = document.querySelector('#messages-box');
 chatMsgBox.style['scroll-behavior'] = 'auto';
 
+// Loading animation element
+const loadingAnimationDiv = document.createElement('div');
+loadingAnimationDiv.setAttribute('id', 'loading-animation');
+loadingAnimationDiv.setAttribute('class', 'flex flex-col items-center justify-center w-full clear-both');
+loadingAnimationDiv.innerHTML = `
+    <div class="mx-auto animate-spin w-8 h-8 rounded-full border-4 border-gray-200"
+        style="border-top-color: #1D4ED8;">
+    </div>
+    <div>Đang tải</div>
+`;
+
 // Creating typing feedback element
 let typingFeedback = document.createElement('div');
 typingFeedback.innerHTML = '<img src=""><b>. . .</b>';
@@ -286,6 +297,11 @@ socket.on('active users', (activeUsers) => {
 // Fetch 20 old messages when scroll to top of chat box
 chatMsgBox.onscroll = async () => {
     if (chatMsgBox.scrollTop == 0) {
+        // Add loading animation element when scrolling to top to get old messages
+        if (!chatMsgBox.querySelector('#loading-animation')) {
+            chatMsgBox.prepend(loadingAnimationDiv);
+        }
+
         const dateNow = new Date(Date.now());
         const now = `${dateNow.getDate()}-${dateNow.getMonth() + 1}-${dateNow.getFullYear()} ${dateNow.getHours()}:${dateNow.getMinutes()}:${dateNow.getSeconds()}`;
         const friendID = document.querySelector('#message-recipient-name-bar').getAttribute('data-friend-id');
@@ -300,6 +316,11 @@ chatMsgBox.onscroll = async () => {
         await fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/messages/option?${queryString}`)
         .then(response => response.json())
         .then(data => {
+            // Remove loading animation element when old messages are fully fetched
+            if (chatMsgBox.querySelector('#loading-animation')) {
+                chatMsgBox.querySelector('#loading-animation').remove();
+            }
+
             const oldMessages = data.messages;
             console.log(oldMessages);
 
@@ -335,8 +356,6 @@ chatMsgBox.onscroll = async () => {
                 addMessageToSessionStorage(oldMessages, friendID);
             }
         });
-
-        console.log(messagesCount);
     }
 }
 
