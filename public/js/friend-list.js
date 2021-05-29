@@ -128,6 +128,17 @@ sentFriendRequestWrapper.setAttribute('id', 'sent-friend-request-wrapper');
 sentFriendRequestWrapper.setAttribute('class', 'mb-10 mx-auto max-w-md');
 sentFriendRequestWrapper.innerHTML += `<div class="mb-2 text-xl font-bold">Yêu cầu kết bạn đã gửi:</div>`;
 
+// Searching animation element
+const loadingAnimationDiv = document.createElement('div');
+loadingAnimationDiv.setAttribute('id', 'loading-animation');
+loadingAnimationDiv.setAttribute('class', 'flex flex-col items-center justify-center mt-24 mb-4 w-full');
+loadingAnimationDiv.innerHTML = `
+    <div class="mx-auto animate-spin w-16 h-16 rounded-full border-8 border-gray-200"
+        style="border-top-color: #1D4ED8;">
+    </div>
+    <div class="mt-2">Đang tìm bạn bè</div>
+`;
+
 // Search result wrapper
 let searchResultWrapper = document.createElement('div');
 searchResultWrapper.setAttribute('id', 'result-wrapper');
@@ -252,20 +263,37 @@ searchFriendBar.onsubmit = (event) => {
         const resultOption = `resultFriendID=true&resultFirstName=true&resultLastName=true&resultAvatar=true&resultFriendStatus=true&resultActionUserID=true`;
         const queryString = `${searchOption}&${resultOption}`;
 
+        // Add loading animation when searching for friends
+        if (!document.body.querySelector('#loading-animation')) {
+            // Remove searchResultWrapper so that searching animation can be displayed below searchFriendBar
+            if (document.body.querySelector('#result-wrapper')) {
+                document.body.querySelector('#result-wrapper').remove();
+            }
+            
+            document.body.appendChild(loadingAnimationDiv);
+        }
+
+        // Hide all friends and display search results
+        {
+            if (friendListWrapper) {
+                friendListWrapper.style.display = 'none';
+            }
+
+            if (friendRequestWrapper) {
+                friendRequestWrapper.style.display = 'none';
+            }
+
+            if (sentFriendRequestWrapper) {
+                sentFriendRequestWrapper.style.display = 'none';
+            }
+        }
+
         fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/friend-list/option?${queryString}`)
             .then((response) => response.json())
             .then(data => {
-                // Hide all friends and display search results
-                if (friendListWrapper) {
-                    friendListWrapper.style.display = 'none';
-                }
-
-                if (friendRequestWrapper) {
-                    friendRequestWrapper.style.display = 'none';
-                }
-
-                if (sentFriendRequestWrapper) {
-                    sentFriendRequestWrapper.style.display = 'none';
+                // Remove searching animation when data is fully fetched
+                if (document.body.querySelector('#loading-animation')) {
+                    document.body.querySelector('#loading-animation').remove();
                 }
 
                 let friends = data.friends ? data.friends : [];
@@ -299,6 +327,7 @@ searchFriendBar.onsubmit = (event) => {
                     }
                 }
                 
+                // Add small delay time for smoothing experience
                 document.body.appendChild(searchResultWrapper);
             });
     }
