@@ -69,7 +69,7 @@ chatMsgBox.style['scroll-behavior'] = 'auto';
 // Loading animation element
 const loadingAnimationDiv = document.createElement('div');
 loadingAnimationDiv.setAttribute('id', 'loading-animation');
-loadingAnimationDiv.setAttribute('class', 'flex flex-col items-center justify-center w-full clear-both');
+loadingAnimationDiv.setAttribute('class', 'flex flex-col items-center justify-center mb-4 w-full clear-both');
 loadingAnimationDiv.innerHTML = `
     <div class="mx-auto animate-spin w-8 h-8 rounded-full border-4 border-gray-200"
         style="border-top-color: #1D4ED8;">
