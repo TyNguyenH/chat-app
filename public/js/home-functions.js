@@ -272,7 +272,7 @@ function renderMessage(msgID, msgCreator, msgAvatarSrc, msgText, msgImageSrc, ms
         }
 
         msgText = msgText.replace(/[\\]/g, '');
-        textElement = `<div class="message-body flex-shrink-0 ${alignSelf} rounded-lg px-2 py-1 ${bgColor} break-words text-justify ${textColor}">${msgText}</div>`;
+        textElement = `<div class="message-body flex-shrink-0 ${alignSelf} rounded-lg mb-1 px-2 py-1 ${bgColor} break-words text-justify ${textColor}">${msgText}</div>`;
     }
 
     // Message image
