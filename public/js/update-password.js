@@ -128,7 +128,7 @@ unsuccessfulNotification.innerHTML = `
     <div class="bg-gray-200 py-8 rounded-lg rounded-b-none">
         <img src="/imgs/x-mark.png" class="mx-auto w-24">
     </div>
-    <p class="py-4 mx-10 text-xl font-bold text-center">Thay đổi mật khẩu không thành công !</p>
+    <p class="py-4 mx-10 text-xl font-bold text-center">Cập nhật mật khẩu không thành công !</p>
     <div class="container mx-auto w-1/2 text-center ">
         <button class="
             mb-3 px-2 py-1

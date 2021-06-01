@@ -38,7 +38,7 @@
         </button>
         <button id="logout-btn" 
                 class="
-                    mx-1 px-2 py-1 rounded-lg bg-red-500 shadow-md
+                    mx-1 px-2 py-1 rounded-lg bg-black shadow-md
                     font-semibold text-white text-center
                     focus:outline-none
                     transform hover:scale-105
@@ -48,3 +48,21 @@
         </button>
     </div>
 </div>
+
+<script>
+    if (location.href.includes('home')) {
+        if (document.querySelector('#home-btn').classList.contains('bg-black')) {
+            document.querySelector('#home-btn').classList.remove('bg-black');
+        }
+
+        document.querySelector('#home-btn').classList.add('bg-blue-500');
+    }
+
+    if (location.href.includes('friend-list')) {
+        if (document.querySelector('#friend-list-btn').classList.contains('bg-black')) {
+            document.querySelector('#friend-list-btn').classList.remove('bg-black');
+        }
+
+        document.querySelector('#friend-list-btn').classList.add('bg-blue-500');
+    }
+</script>
