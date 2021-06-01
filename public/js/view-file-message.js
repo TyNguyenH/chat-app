@@ -132,32 +132,32 @@ class FileMessageList {
 
             this.fileMessages[this.activeFileMessageIndex - step].isActive = true;
             this.activeFileMessageIndex -= step;
+        }
 
-            // Fetch new file messages and add them to FileMessageList if activeFileMessageIndex reaches edge of fileMessagesList
-            if (this.activeFileMessageIndex - step < 0) {
-                const dateNow = new Date(Date.now());
-                const now = `${dateNow.getDate()}-${dateNow.getMonth() + 1}-${dateNow.getFullYear()} ${dateNow.getHours()}:${dateNow.getMinutes()}:${dateNow.getSeconds()}`;
+        // Fetch new file messages and add them to FileMessageList if activeFileMessageIndex reaches edge of fileMessagesList
+        if (this.activeFileMessageIndex - step < 0) {
+            const dateNow = new Date(Date.now());
+            const now = `${dateNow.getDate()}-${dateNow.getMonth() + 1}-${dateNow.getFullYear()} ${dateNow.getHours()}:${dateNow.getMinutes()}:${dateNow.getSeconds()}`;
 
-                const userID = document.querySelector('#user-info').getAttribute('data-user-id');
-                const friendID = document.querySelector('#file-message-viewer').getAttribute('data-friend-id');
+            const userID = document.querySelector('#user-info').getAttribute('data-user-id');
+            const friendID = document.querySelector('#file-message-viewer').getAttribute('data-friend-id');
 
-                const limit = this.fetchConfig.limit;
-                const offset = 0;
+            const limit = this.fetchConfig.limit;
+            const offset = 0;
 
-                const searchOption = `searchCreatorID=[${userID},${friendID}]&searchRecipientID=[${userID},${friendID}]&searchDateTo=${now}&searchOffset=${offset}&searchLimit=${limit}`;
+            const searchOption = `searchCreatorID=[${userID},${friendID}]&searchRecipientID=[${userID},${friendID}]&searchDateTo=${now}&searchOffset=${offset}&searchLimit=${limit}`;
 
-                fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/file-messages/option?${searchOption}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        let fileMessages = data.fileMessages;
+            fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/file-messages/option?${searchOption}`)
+                .then(res => res.json())
+                .then(data => {
+                    let fileMessages = data.fileMessages;
 
-                        if (fileMessages.length > 0) {
-                            this.addFileMessageObjectArray(fileMessages);
-                        }
+                    if (fileMessages.length > 0) {
+                        this.addFileMessageObjectArray(fileMessages);
+                    }
 
-                        this.renderFileMessageList();
-                    })
-            }
+                    this.renderFileMessageList();
+                })
         }
     }
 
@@ -178,33 +178,32 @@ class FileMessageList {
 
             this.fileMessages[this.activeFileMessageIndex + step].isActive = true;
             this.activeFileMessageIndex += step;
+        }
 
+        // Fetch old file messages and add them to FileMessageList if activeFileMessageIndex reaches edge of fileMessagesList
+        if (this.activeFileMessageIndex + step == this.fileMessages.length) {
+            const dateNow = new Date(Date.now());
+            const now = `${dateNow.getDate()}-${dateNow.getMonth() + 1}-${dateNow.getFullYear()} ${dateNow.getHours()}:${dateNow.getMinutes()}:${dateNow.getSeconds()}`;
 
-            // Fetch old file messages and add them to FileMessageList if activeFileMessageIndex reaches edge of fileMessagesList
-            if (this.activeFileMessageIndex + step == this.fileMessages.length) {
-                const dateNow = new Date(Date.now());
-                const now = `${dateNow.getDate()}-${dateNow.getMonth() + 1}-${dateNow.getFullYear()} ${dateNow.getHours()}:${dateNow.getMinutes()}:${dateNow.getSeconds()}`;
+            const userID = document.querySelector('#user-info').getAttribute('data-user-id');
+            const friendID = document.querySelector('#file-message-viewer').getAttribute('data-friend-id');
 
-                const userID = document.querySelector('#user-info').getAttribute('data-user-id');
-                const friendID = document.querySelector('#file-message-viewer').getAttribute('data-friend-id');
+            const limit = this.fetchConfig.limit;
+            const offset = this.fetchConfig.offset;
 
-                const limit = this.fetchConfig.limit;
-                const offset = this.fetchConfig.offset;
+            const searchOption = `searchCreatorID=[${userID},${friendID}]&searchRecipientID=[${userID},${friendID}]&searchDateTo=${now}&searchOffset=${offset}&searchLimit=${limit}`;
 
-                const searchOption = `searchCreatorID=[${userID},${friendID}]&searchRecipientID=[${userID},${friendID}]&searchDateTo=${now}&searchOffset=${offset}&searchLimit=${limit}`;
+            fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/file-messages/option?${searchOption}`)
+                .then(res => res.json())
+                .then(data => {
+                    let fileMessages = data.fileMessages;
 
-                fetch(`${CONFIG.serverAddress}:${CONFIG.serverPort}/api/file-messages/option?${searchOption}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        let fileMessages = data.fileMessages;
+                    if (fileMessages.length > 0) {
+                        this.addFileMessageObjectArray(fileMessages);
+                    }
 
-                        if (fileMessages.length > 0) {
-                            this.addFileMessageObjectArray(fileMessages);
-                        }
-
-                        this.renderFileMessageList();
-                    })
-            }
+                    this.renderFileMessageList();
+                })
         }
     }
 
