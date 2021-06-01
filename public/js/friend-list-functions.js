@@ -107,7 +107,7 @@ function renderFriendCard(friendID, friendAvatarSrc, friendFullName, cardType) {
                         transform hover:scale-105
                         transition duration-75"
                     onclick="${decline}${onclick}">
-                    Hủy
+                    Từ chối
                 </button>
             </div>`;
     }
