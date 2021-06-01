@@ -157,7 +157,7 @@ router.put('/user-account', (req, res) => {
                         // Correct old password
                         if (oldHashedPassword === userPassword) {
                             shaSum = crypto.createHash('sha256');
-                            const secretCode = shaSum.update(`${oldPassword}-->${newPassword}:)`).digest('hex');
+                            const secretCode = shaSum.update(`${Date.now()}${oldPassword}-->${newPassword}:)`).digest('hex');
 
                             tempUserUpdateAccount[email] = {};
                             tempUserUpdateAccount[email].newHashedPassword = newHashedPassword;
@@ -250,7 +250,7 @@ router.get('/user-account/auth/:email/:secretCode', (req, res) => {
                 // Pop out temporary user registering data when user registered successfully
                 delete tempUserUpdateAccount[email];
 
-                const message = 'Cập nhật mật khẩu <br> thành công';
+                const message = 'Cập nhật mật khẩu <br> thành công !';
                 res.render('notification.ejs', { message });
             }
         });
@@ -259,7 +259,7 @@ router.get('/user-account/auth/:email/:secretCode', (req, res) => {
             delete tempUserUpdateAccount[email];
         }
 
-        const message = 'Cập nhật mật khẩu <br> không thành công';
+        const message = 'Cập nhật mật khẩu <br> không thành công !';
         res.render('notification.ejs', { message });
     }
 });
