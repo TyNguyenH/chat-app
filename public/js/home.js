@@ -617,7 +617,7 @@ socket.on('message', (messageData) => {
 
         // Automatically move to the bottom of chat box
         chatMsgBox.style['scroll-behavior'] = 'smooth';
-        chatMsgBox.children[chatMsgBox.childElementCount - 1].scrollIntoView();
+        chatMsgBox.scrollTop = chatMsgBox.scrollHeight;
     } 
     
     // Show new message at friends navigation tab (with blue notification dot)
