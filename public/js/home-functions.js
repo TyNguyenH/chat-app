@@ -302,7 +302,11 @@ function renderMessage(msgID, msgCreator, msgAvatarSrc, msgText, msgImageSrc, ms
 
         const imgOnload = `
             let chatMsgBox = document.getElementById('messages-box');
-            chatMsgBox.scrollTop = chatMsgBox.scrollHeight;`;
+            if (chatMsgBox.scrollTop > 0) {
+                chatMsgBox.scrollTop = chatMsgBox.scrollHeight;
+            }
+        `;
+            
 
         imgElement = `<img src="${msgImageSrc}" onclick="${imgOnclick}" onload="${imgOnload}" alt="image" class="select-none cursor-pointer rounded-lg">`;
     }
