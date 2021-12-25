@@ -5,12 +5,14 @@ The project was developed as I was learning some new stuff like Socket.IO, Expre
 
 <br>
 
-## Install dependencies (based on package.json)
+## Install dependencies
     npm install
 
 <br>
 
-## .env file (required)
+## Create following files to run the app:
+
+### .env file (required)
     HOST_PORT           {number}  // Default port
     HOST_PORT_SECURE    {number}  // Port for HTTPS
     HOST_ADDRESS        {string}  // Server main address, ex: http://ip-address or https://domain-name
@@ -19,19 +21,15 @@ The project was developed as I was learning some new stuff like Socket.IO, Expre
     DB_PASSWORD         {string}  // Database login user password
     DB_PORT             {string}  // Database port
 
-<br>
 
-## public/js/config.js (required)
+### public/js/config.js (required)
     const CONFIG = {
         serverAddress:  {string}  // Server main address, ex: http://ip-address or https://domain-name
         serverPort:     {number}  // Server main port
     };
     export default CONFIG;
 
-<br>
 
 ### :warning: **When building css with Tailwind CSS:**
     $ export NODE_ENV=production  (Linux)
     > set NODE_ENV=production     (Windows)
-
-<br>
