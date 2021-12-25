@@ -30,6 +30,7 @@ The project was developed as I was learning some new stuff like Socket.IO, Expre
     export default CONFIG;
 
 
-### :warning: **When building css with Tailwind CSS:**
-    $ export NODE_ENV=production  (Linux)
+### :warning: When building css with Tailwind CSS:
+    $ export NODE_ENV=production  (* Linux)
     > set NODE_ENV=production     (Windows)
+\* Building CSS on Linux is recommended
