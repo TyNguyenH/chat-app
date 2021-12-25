@@ -1,6 +1,6 @@
 # Web-based chat application (Desktop/Laptop)
 
-This is a school project from my second year in college. <br/>
+This is a school project from my third year in college. <br/>
 The project was developed as I was learning some new stuff like Socket.IO, Express and PostgreSQL.
 
 <br>
